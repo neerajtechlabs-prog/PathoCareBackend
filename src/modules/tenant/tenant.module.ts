@@ -1,10 +1,23 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
+import { DatabaseModule } from '../../database/database.module';
 import { TenantService } from './tenant.service';
 import { TenantController } from './tenant.controller';
+import { TenantMiddleware } from './tenant.middleware';
+import { TenantDataSourceService } from '../../database/datasources/tenant.datasource';
 
 @Module({
+  imports: [DatabaseModule],
   controllers: [TenantController],
-  providers: [TenantService],
-  exports: [TenantService],
+  providers: [TenantService, TenantMiddleware, TenantDataSourceService],
+  exports: [TenantService, TenantDataSourceService],
 })
-export class TenantModule {}
+export class TenantModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer
+      .apply(TenantMiddleware)
+      .forRoutes(
+        { path: 'tenants', method: RequestMethod.ALL },
+        { path: 'auth', method: RequestMethod.ALL },
+      );
+  }
+}

@@ -26,10 +26,32 @@ cp .env.example .env
 # Edit .env with your local values (docker-compose defaults work as-is for local dev)
 ```
 
-3. **Start services:**
+3. **Start services (working flow on Windows / VS Code):**
 ```bash
-docker-compose up -d
-# Wait for postgres and redis to be healthy
+# 1) Start Docker Desktop app first
+# 2) Open terminal in the backend project folder
+cd Backend/PathoCareBackend
+
+# 3) Start the containers
+docker compose up -d
+```
+
+Expected success output includes:
+```text
+[+] up 7/7
+✔ Container pathcare-postgres Healthy
+✔ Container pathcare-redis Healthy
+✔ Container pathcare-api Started
+```
+
+If you want to stop everything later:
+```bash
+docker compose down
+```
+
+To follow logs:
+```bash
+docker compose logs -f api
 ```
 
 4. **Run migrations and seed:**

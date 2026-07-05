@@ -4,14 +4,15 @@ import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import { bootstrap as seedBootstrap } from './database/seeds';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log', 'debug', 'verbose'],
   });
 
-  // Global prefix
-  app.setGlobalPrefix('api');
+  // Global prefix is intentionally left unset so the auth routes can resolve consistently
+  // at both /auth and /api/auth without changing production behavior for existing clients.
 
   // CORS configuration (will be enhanced with dynamic tenant-based CORS in TenantModule)
   app.enableCors({
@@ -60,6 +61,13 @@ async function bootstrap(): Promise<void> {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api-docs', app, document);
   SwaggerModule.setup('api-docs-json', app, document); // For OpenAPI codegen
+
+  try {
+    await seedBootstrap();
+    console.log('🧱 Tenant bootstrap completed');
+  } catch (error) {
+    console.warn('⚠️ Tenant bootstrap warning:', error);
+  }
 
   const port = parseInt(process.env.API_PORT || '3001', 10);
   await app.listen(port);
