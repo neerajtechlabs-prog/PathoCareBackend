@@ -1,12 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { User, UserRole } from '../../database/entities/tenant/user.entity';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class UsersRepository {
   private readonly logger = new Logger(UsersRepository.name);
 
-  constructor() {}
+  constructor(private readonly auditService: AuditService) {}
 
   /**
    * Find user by email in a specific tenant schema
@@ -56,7 +57,21 @@ export class UsersRepository {
         role,
         isActive: true,
       });
-      return await tenantDS.getRepository(User).save(user);
+      const createdUser = await tenantDS.getRepository(User).save(user);
+
+      const tenantSlug = (tenantDS.options as { schema?: string }).schema?.replace('tenant_', '') || 'unknown';
+      void this.auditService.logEvent({
+        tenantSlug,
+        action: 'users.created',
+        entityType: 'users',
+        entityId: createdUser.id,
+        userId: createdUser.id,
+        userEmail: createdUser.email,
+        role: createdUser.role,
+        newValues: { name, role },
+      });
+
+      return createdUser;
     } catch (error) {
       this.logger.error(`Failed to create user ${email}:`, error);
       throw error;

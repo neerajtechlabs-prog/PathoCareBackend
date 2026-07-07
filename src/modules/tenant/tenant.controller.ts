@@ -1,10 +1,11 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { TenantService } from './tenant.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../../database/entities/tenant/user.entity';
+import { AuditService } from '../audit/audit.service';
 
 @ApiTags('tenants')
 @ApiBearerAuth()
@@ -12,13 +13,30 @@ import { UserRole } from '../../database/entities/tenant/user.entity';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.SUPER_ADMIN, UserRole.LAB_ADMIN)
 export class TenantController {
-  constructor(private readonly tenantService: TenantService) {}
+  constructor(
+    private readonly tenantService: TenantService,
+    private readonly auditService: AuditService,
+  ) {}
 
   @Get(':slug')
   @ApiOperation({ summary: 'Get tenant information' })
   @ApiResponse({ status: 200, description: 'Tenant metadata' })
   @ApiResponse({ status: 404, description: 'Tenant not found' })
-  async getTenant(@Param('slug') slug: string): Promise<{ slug: string; status: string; name: string; schemaName: string }> {
+  async getTenant(
+    @Param('slug') slug: string,
+    @Req() req: any,
+  ): Promise<{ slug: string; status: string; name: string; schemaName: string }> {
+    await this.auditService.logEvent({
+      tenantSlug: req.headers['x-tenant-slug'] ? String(req.headers['x-tenant-slug']) : slug,
+      action: 'tenants.info.accessed',
+      entityType: 'tenant',
+      entityId: slug,
+      userId: req.user?.sub,
+      userEmail: req.user?.email,
+      role: req.user?.role,
+      newValues: { source: 'tenant_controller' },
+    });
+
     return this.tenantService.getTenantInfo(slug);
   }
 
@@ -31,7 +49,19 @@ export class TenantController {
   @ApiResponse({ status: 404, description: 'Tenant not found' })
   async getIsolationProof(
     @Param('slug') slug: string,
+    @Req() req: any,
   ): Promise<{ tenantSlug: string; schemaName: string; isolationProofRows: any[] }> {
+    await this.auditService.logEvent({
+      tenantSlug: req.headers['x-tenant-slug'] ? String(req.headers['x-tenant-slug']) : slug,
+      action: 'tenants.isolation.accessed',
+      entityType: 'tenant',
+      entityId: slug,
+      userId: req.user?.sub,
+      userEmail: req.user?.email,
+      role: req.user?.role,
+      newValues: { source: 'tenant_isolation_endpoint' },
+    });
+
     return this.tenantService.getIsolationProof(slug);
   }
 }

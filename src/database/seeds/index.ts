@@ -151,6 +151,27 @@ async function ensureTenantSeedData(queryRunner: any, tenant: TenantSeedConfig):
     `,
   );
 
+  // Create refresh_tokens table (persisted token validation)
+  await queryRunner.query(
+    `
+    CREATE TABLE IF NOT EXISTS ${schemaName}.refresh_tokens (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL,
+      token_hash VARCHAR(255) NOT NULL,
+      family VARCHAR(50) NOT NULL,
+      revoked BOOLEAN DEFAULT false,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      expires_at TIMESTAMP NOT NULL,
+      revoked_at TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_${schemaName}_refresh_tokens_user_id ON ${schemaName}.refresh_tokens(user_id);
+    CREATE INDEX IF NOT EXISTS idx_${schemaName}_refresh_tokens_family ON ${schemaName}.refresh_tokens(family);
+    CREATE INDEX IF NOT EXISTS idx_${schemaName}_refresh_tokens_revoked ON ${schemaName}.refresh_tokens(revoked);
+    CREATE INDEX IF NOT EXISTS idx_${schemaName}_refresh_tokens_expires_at ON ${schemaName}.refresh_tokens(expires_at);
+    `,
+  );
+
   // Insert seed_proof row
   await queryRunner.query(
     `

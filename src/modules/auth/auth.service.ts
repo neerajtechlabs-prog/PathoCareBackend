@@ -2,8 +2,11 @@ import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as argon2 from 'argon2';
+import { v4 as uuidv4 } from 'uuid';
 import { JwtPayload } from './strategies/jwt.strategy';
 import { AuthResponseDto } from './dtos/auth-response.dto';
+import { RefreshTokenRepository } from './repositories/refresh-token.repository';
+import { TenantDataSourceService } from '../../database/datasources/tenant.datasource';
 
 @Injectable()
 export class AuthService {
@@ -12,6 +15,8 @@ export class AuthService {
   constructor(
     private jwtService: JwtService,
     private configService: ConfigService,
+    private refreshTokenRepository: RefreshTokenRepository,
+    private tenantDataSourceService: TenantDataSourceService,
   ) {}
 
   /**
@@ -75,7 +80,7 @@ export class AuthService {
   /**
    * Validate refresh token and issue new access + refresh pair
    */
-  async refreshAccessToken(refreshToken: string): Promise<AuthResponseDto> {
+  async refreshAccessToken(refreshToken: string, tenantSlug: string): Promise<AuthResponseDto> {
     try {
       const payload = this.jwtService.verify(refreshToken, {
         secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
@@ -85,8 +90,20 @@ export class AuthService {
         throw new UnauthorizedException('Invalid refresh token payload');
       }
 
-      // TODO: Week 3 enhancement: Check if refresh token is in DB and not revoked
-      // For now, just issue new tokens
+      // Validate refresh token against persisted DB
+      const tenantDS = await this.tenantDataSourceService.getForTenant(tenantSlug);
+      const storedToken = await this.refreshTokenRepository.validate(
+        tenantDS,
+        payload.sub,
+        refreshToken,
+      );
+
+      if (!storedToken) {
+        throw new UnauthorizedException('Refresh token has been revoked or expired');
+      }
+
+      // Issue new token family for rotation
+      const newFamily = uuidv4();
 
       const newAccessToken = this.generateAccessToken({
         sub: payload.sub,
@@ -95,20 +112,34 @@ export class AuthService {
         role: payload.role,
       });
 
-      const newRefreshToken = this.generateRefreshToken({
+      const newRefreshTokenString = this.generateRefreshToken({
         sub: payload.sub,
         email: payload.email,
         tenantSlug: payload.tenantSlug,
         role: payload.role,
       });
 
-      const expiresIn = 900; // 15 minutes in seconds
+      // Persist new refresh token
+      const expiresIn = this.configService.get<string>('JWT_REFRESH_EXPIRATION', '7d');
+      const expiresAt = this.parseExpiry(expiresIn);
+      await this.refreshTokenRepository.create(
+        tenantDS,
+        payload.sub,
+        newFamily,
+        expiresAt,
+        newRefreshTokenString,
+      );
+
+      // Revoke old token family
+      await this.refreshTokenRepository.revoke(tenantDS, storedToken.id);
+
+      const accessExpiresIn = 900; // 15 minutes in seconds
 
       return {
         accessToken: newAccessToken,
-        refreshToken: newRefreshToken,
+        refreshToken: newRefreshTokenString,
         tokenType: 'Bearer',
-        expiresIn,
+        expiresIn: accessExpiresIn,
       };
     } catch (error) {
       this.logger.error('Refresh token validation failed:', error);
@@ -117,14 +148,14 @@ export class AuthService {
   }
 
   /**
-   * Build auth response with tokens
+   * Build auth response with tokens and persist refresh token
    */
-  buildAuthResponse(
+  async buildAuthResponse(
     userId: string,
     email: string,
     tenantSlug: string,
     role: string,
-  ): AuthResponseDto {
+  ): Promise<AuthResponseDto> {
     const accessToken = this.generateAccessToken({
       sub: userId,
       email,
@@ -132,21 +163,77 @@ export class AuthService {
       role,
     });
 
-    const refreshToken = this.generateRefreshToken({
+    const refreshTokenString = this.generateRefreshToken({
       sub: userId,
       email,
       tenantSlug,
       role,
     });
 
-    const expiresIn = 900; // 15 minutes in seconds
+    // Persist refresh token
+    const tenantDS = await this.tenantDataSourceService.getForTenant(tenantSlug);
+    const family = uuidv4();
+    const expiresIn = this.configService.get<string>('JWT_REFRESH_EXPIRATION', '7d');
+    const expiresAt = this.parseExpiry(expiresIn);
+
+    await this.refreshTokenRepository.create(
+      tenantDS,
+      userId,
+      family,
+      expiresAt,
+      refreshTokenString,
+    );
+
+    const accessExpiresIn = 900; // 15 minutes in seconds
 
     return {
       accessToken,
-      refreshToken,
+      refreshToken: refreshTokenString,
       tokenType: 'Bearer',
-      expiresIn,
+      expiresIn: accessExpiresIn,
     };
+  }
+
+  /**
+   * Revoke all refresh tokens for a user (logout from all devices)
+   */
+  async revokeRefreshTokens(userId: string, tenantSlug: string): Promise<void> {
+    try {
+      const tenantDS = await this.tenantDataSourceService.getForTenant(tenantSlug);
+      await this.refreshTokenRepository.revokeAllForUser(tenantDS, userId);
+    } catch (error) {
+      this.logger.error(`Failed to revoke tokens for user ${userId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Parse expiry string (e.g., "7d", "15m") to Date
+   */
+  private parseExpiry(expiryStr: string): Date {
+    const now = new Date();
+    const match = expiryStr.match(/^(\d+)([smhd])$/);
+
+    if (!match) {
+      this.logger.warn(`Invalid expiry format: ${expiryStr}, defaulting to 7 days`);
+      return new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    }
+
+    const [, value, unit] = match;
+    const numValue = parseInt(value, 10);
+
+    switch (unit) {
+      case 's':
+        return new Date(now.getTime() + numValue * 1000);
+      case 'm':
+        return new Date(now.getTime() + numValue * 60 * 1000);
+      case 'h':
+        return new Date(now.getTime() + numValue * 60 * 60 * 1000);
+      case 'd':
+        return new Date(now.getTime() + numValue * 24 * 60 * 60 * 1000);
+      default:
+        return new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    }
   }
 
   /**

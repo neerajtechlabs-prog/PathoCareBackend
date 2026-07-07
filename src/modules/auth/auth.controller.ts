@@ -19,6 +19,7 @@ import { UsersRepository } from '../users/users.repository';
 import { LoginDto } from './dtos/login.dto';
 import { AuthResponseDto } from './dtos/auth-response.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { AuditService } from '../audit/audit.service';
 
 @ApiTags('auth')
 @Controller(['auth', 'api/auth'])
@@ -29,6 +30,7 @@ export class AuthController {
     private authService: AuthService,
     private tenantDSService: TenantDataSourceService,
     private usersRepository: UsersRepository,
+    private auditService: AuditService,
   ) {}
 
   @Get('me')
@@ -37,7 +39,18 @@ export class AuthController {
   @ApiOperation({ summary: 'Get current authenticated user profile' })
   @ApiResponse({ status: 200, description: 'Authenticated user returned' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  getProfile(@Req() req: Request & { user?: { sub?: string; email?: string; tenantSlug?: string; role?: string } }) {
+  async getProfile(@Req() req: Request & { user?: { sub?: string; email?: string; tenantSlug?: string; role?: string } }) {
+    await this.auditService.logEvent({
+      tenantSlug: req.headers['x-tenant-slug'] ? String(req.headers['x-tenant-slug']) : 'unknown',
+      action: 'auth.profile.viewed',
+      entityType: 'auth',
+      entityId: req.user?.sub || 'me',
+      userId: req.user?.sub,
+      userEmail: req.user?.email,
+      role: req.user?.role,
+      newValues: { source: 'profile_endpoint' },
+    });
+
     return {
       id: req.user?.sub,
       email: req.user?.email,
@@ -62,6 +75,13 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponseDto> {
     if (!tenantSlug || typeof tenantSlug !== 'string' || tenantSlug.trim() === '') {
+      await this.auditService.logEvent({
+        tenantSlug: 'unknown',
+        action: 'auth.login.failed',
+        entityType: 'auth',
+        entityId: 'login',
+        newValues: { reason: 'missing_tenant_header', email: loginDto.email },
+      });
       throw new BadRequestException('X-Tenant-Slug header is required');
     }
 
@@ -73,6 +93,14 @@ export class AuthController {
       const user = await this.usersRepository.findByEmail(tenantDS, loginDto.email);
       if (!user) {
         this.logger.warn(`Login failed: user not found - ${loginDto.email} (tenant: ${tenantSlug})`);
+        await this.auditService.logEvent({
+          tenantSlug,
+          action: 'auth.login.failed',
+          entityType: 'auth',
+          entityId: loginDto.email,
+          userEmail: loginDto.email,
+          newValues: { reason: 'user_not_found' },
+        });
         throw new UnauthorizedException('Invalid email or password');
       }
 
@@ -83,16 +111,36 @@ export class AuthController {
       );
       if (!isPasswordValid) {
         this.logger.warn(`Login failed: invalid password - ${loginDto.email} (tenant: ${tenantSlug})`);
+        await this.auditService.logEvent({
+          tenantSlug,
+          action: 'auth.login.failed',
+          entityType: 'auth',
+          entityId: user.id,
+          userId: user.id,
+          userEmail: user.email,
+          role: user.role,
+          newValues: { reason: 'invalid_password' },
+        });
         throw new UnauthorizedException('Invalid email or password');
       }
 
       if (!user.isActive) {
         this.logger.warn(`Login failed: user inactive - ${loginDto.email} (tenant: ${tenantSlug})`);
+        await this.auditService.logEvent({
+          tenantSlug,
+          action: 'auth.login.failed',
+          entityType: 'auth',
+          entityId: user.id,
+          userId: user.id,
+          userEmail: user.email,
+          role: user.role,
+          newValues: { reason: 'inactive_user' },
+        });
         throw new UnauthorizedException('User account is inactive');
       }
 
       // Generate tokens
-      const authResponse = this.authService.buildAuthResponse(
+      const authResponse = await this.authService.buildAuthResponse(
         user.id,
         user.email,
         tenantSlug,
@@ -109,6 +157,16 @@ export class AuthController {
       });
 
       this.logger.log(`User logged in: ${user.email} (tenant: ${tenantSlug})`);
+      await this.auditService.logEvent({
+        tenantSlug,
+        action: 'auth.login.success',
+        entityType: 'auth',
+        entityId: user.id,
+        userId: user.id,
+        userEmail: user.email,
+        role: user.role,
+        newValues: { loginMethod: 'email_password' },
+      });
 
       return authResponse;
     } catch (error) {
@@ -131,7 +189,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 401, description: 'Invalid refresh token' })
   async refresh(
-    @Req() req: Request,
+    @Req() req: Request & { headers: { 'x-tenant-slug'?: string } },
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponseDto> {
     const refreshToken = req.cookies?.refreshToken;
@@ -139,9 +197,11 @@ export class AuthController {
       throw new UnauthorizedException('Refresh token not found - login required');
     }
 
+    const tenantSlug = req.headers['x-tenant-slug'] ? String(req.headers['x-tenant-slug']) : 'unknown';
+
     try {
-      // Validate and issue new tokens
-      const authResponse = await this.authService.refreshAccessToken(refreshToken);
+      // Validate refresh token and issue new tokens
+      const authResponse = await this.authService.refreshAccessToken(refreshToken, tenantSlug);
 
       // Update refresh token in httpOnly cookie
       res.cookie('refreshToken', authResponse.refreshToken, {
@@ -153,6 +213,13 @@ export class AuthController {
       });
 
       this.logger.log('Access token refreshed');
+      await this.auditService.logEvent({
+        tenantSlug,
+        action: 'auth.refresh.success',
+        entityType: 'auth',
+        entityId: 'refresh-token',
+        newValues: { source: 'cookie', tokenRotated: true },
+      });
 
       return authResponse;
     } catch (error) {
@@ -163,16 +230,43 @@ export class AuthController {
   }
 
   @Post('logout')
-  @ApiOperation({ summary: 'User logout - clears refresh token cookie' })
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'User logout - revokes all refresh tokens' })
   @ApiResponse({ status: 200, description: 'Logout successful' })
-  async logout(@Res({ passthrough: true }) res: Response): Promise<{ message: string }> {
+  async logout(
+    @Req() req: any,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ message: string }> {
+    const tenantSlug = req.headers['x-tenant-slug'] ? String(req.headers['x-tenant-slug']) : 'unknown';
+    const userId = req.user?.sub;
+
     // Clear refresh token cookie
     res.clearCookie('refreshToken', {
       httpOnly: true,
       domain: process.env.COOKIE_DOMAIN || '.pathcare.local',
     });
 
-    this.logger.log('User logged out');
+    // Revoke all refresh tokens (logout from all devices)
+    if (userId) {
+      try {
+        await this.authService.revokeRefreshTokens(userId, tenantSlug);
+      } catch (error) {
+        this.logger.warn(`Failed to revoke tokens during logout for user ${userId}:`, error);
+      }
+    }
+
+    this.logger.log(`User ${userId} logged out`);
+    await this.auditService.logEvent({
+      tenantSlug,
+      action: 'auth.logout.success',
+      entityType: 'auth',
+      entityId: userId || 'logout',
+      userId,
+      userEmail: req.user?.email,
+      role: req.user?.role,
+      newValues: { source: 'explicit_logout' },
+    });
 
     return { message: 'Logout successful' };
   }

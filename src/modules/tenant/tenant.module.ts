@@ -4,12 +4,13 @@ import { TenantService } from './tenant.service';
 import { TenantController } from './tenant.controller';
 import { TenantMiddleware } from './tenant.middleware';
 import { TenantDataSourceService } from '../../database/datasources/tenant.datasource';
+import { AuditService } from '../audit/audit.service';
 
 @Module({
   imports: [DatabaseModule],
   controllers: [TenantController],
-  providers: [TenantService, TenantMiddleware, TenantDataSourceService],
-  exports: [TenantService, TenantDataSourceService],
+  providers: [TenantService, TenantMiddleware, TenantDataSourceService, AuditService],
+  exports: [TenantService, TenantDataSourceService, AuditService],
 })
 export class TenantModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
