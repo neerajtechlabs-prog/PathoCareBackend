@@ -20,6 +20,7 @@ import { LoginDto } from './dtos/login.dto';
 import { AuthResponseDto } from './dtos/auth-response.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuditService } from '../audit/audit.service';
+import { LoginThrottleGuard } from './guards/login-throttle.guard';
 
 @ApiTags('auth')
 @Controller(['auth', 'api/auth'])
@@ -60,6 +61,7 @@ export class AuthController {
   }
 
   @Post('login')
+  @UseGuards(LoginThrottleGuard)
   @ApiOperation({ summary: 'User login with email and password' })
   @ApiBody({ type: LoginDto })
   @ApiResponse({
@@ -73,6 +75,7 @@ export class AuthController {
     @Body() loginDto: LoginDto,
     @Headers('x-tenant-slug') tenantSlug: string,
     @Res({ passthrough: true }) res: Response,
+    @Req() req: Request,
   ): Promise<AuthResponseDto> {
     if (!tenantSlug || typeof tenantSlug !== 'string' || tenantSlug.trim() === '') {
       await this.auditService.logEvent({
@@ -93,6 +96,7 @@ export class AuthController {
       const user = await this.usersRepository.findByEmail(tenantDS, loginDto.email);
       if (!user) {
         this.logger.warn(`Login failed: user not found - ${loginDto.email} (tenant: ${tenantSlug})`);
+        this.authService.loginAttemptService.recordFailure(req.ip || 'unknown-ip', loginDto.email);
         await this.auditService.logEvent({
           tenantSlug,
           action: 'auth.login.failed',
@@ -111,6 +115,7 @@ export class AuthController {
       );
       if (!isPasswordValid) {
         this.logger.warn(`Login failed: invalid password - ${loginDto.email} (tenant: ${tenantSlug})`);
+        this.authService.loginAttemptService.recordFailure(req.ip || 'unknown-ip', loginDto.email);
         await this.auditService.logEvent({
           tenantSlug,
           action: 'auth.login.failed',
@@ -126,6 +131,7 @@ export class AuthController {
 
       if (!user.isActive) {
         this.logger.warn(`Login failed: user inactive - ${loginDto.email} (tenant: ${tenantSlug})`);
+        this.authService.loginAttemptService.recordFailure(req.ip || 'unknown-ip', loginDto.email);
         await this.auditService.logEvent({
           tenantSlug,
           action: 'auth.login.failed',
@@ -157,6 +163,7 @@ export class AuthController {
       });
 
       this.logger.log(`User logged in: ${user.email} (tenant: ${tenantSlug})`);
+      this.authService.loginAttemptService.recordSuccess(req.ip || 'unknown-ip', loginDto.email);
       await this.auditService.logEvent({
         tenantSlug,
         action: 'auth.login.success',

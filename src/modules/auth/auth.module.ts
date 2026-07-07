@@ -14,6 +14,8 @@ import { RefreshToken } from '../../database/entities/tenant/refresh-token.entit
 import { RolesGuard } from './guards/roles.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RefreshTokenRepository } from './repositories/refresh-token.repository';
+import { LoginAttemptService } from './services/login-attempt.service';
+import { LoginThrottleGuard } from './guards/login-throttle.guard';
 
 @Module({
   imports: [
@@ -31,9 +33,21 @@ import { RefreshTokenRepository } from './repositories/refresh-token.repository'
     DatabaseModule,
     TenantModule,
   ],
-  providers: [AuthService, JwtStrategy, UsersRepository, JwtAuthGuard, RolesGuard, RefreshTokenRepository],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    UsersRepository,
+    JwtAuthGuard,
+    RolesGuard,
+    LoginThrottleGuard,
+    {
+      provide: LoginAttemptService,
+      useFactory: () => new LoginAttemptService(),
+    },
+    RefreshTokenRepository,
+  ],
   controllers: [AuthController],
-  exports: [AuthService, JwtModule, UsersRepository, JwtAuthGuard, RolesGuard, RefreshTokenRepository],
+  exports: [AuthService, JwtModule, UsersRepository, JwtAuthGuard, RolesGuard, LoginAttemptService, RefreshTokenRepository],
 })
 export class AuthModule {}
 

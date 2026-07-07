@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
@@ -19,6 +20,8 @@ async function bootstrap(): Promise<void> {
     origin: process.env.NODE_ENV === 'production' ? false : true,
     credentials: true,
   });
+
+  app.use(helmet());
 
   // Global pipes
   app.useGlobalPipes(

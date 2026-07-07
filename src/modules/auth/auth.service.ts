@@ -7,6 +7,7 @@ import { JwtPayload } from './strategies/jwt.strategy';
 import { AuthResponseDto } from './dtos/auth-response.dto';
 import { RefreshTokenRepository } from './repositories/refresh-token.repository';
 import { TenantDataSourceService } from '../../database/datasources/tenant.datasource';
+import { LoginAttemptService } from './services/login-attempt.service';
 
 @Injectable()
 export class AuthService {
@@ -17,6 +18,7 @@ export class AuthService {
     private configService: ConfigService,
     private refreshTokenRepository: RefreshTokenRepository,
     private tenantDataSourceService: TenantDataSourceService,
+    public readonly loginAttemptService: LoginAttemptService
   ) {}
 
   /**
@@ -84,7 +86,7 @@ export class AuthService {
     try {
       const payload = this.jwtService.verify(refreshToken, {
         secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-      }) as JwtPayload;
+      });
 
       if (!payload.sub || !payload.email || !payload.tenantSlug) {
         throw new UnauthorizedException('Invalid refresh token payload');
@@ -95,7 +97,7 @@ export class AuthService {
       const storedToken = await this.refreshTokenRepository.validate(
         tenantDS,
         payload.sub,
-        refreshToken,
+        refreshToken
       );
 
       if (!storedToken) {
@@ -127,7 +129,7 @@ export class AuthService {
         payload.sub,
         newFamily,
         expiresAt,
-        newRefreshTokenString,
+        newRefreshTokenString
       );
 
       // Revoke old token family
@@ -154,7 +156,7 @@ export class AuthService {
     userId: string,
     email: string,
     tenantSlug: string,
-    role: string,
+    role: string
   ): Promise<AuthResponseDto> {
     const accessToken = this.generateAccessToken({
       sub: userId,
@@ -181,7 +183,7 @@ export class AuthService {
       userId,
       family,
       expiresAt,
-      refreshTokenString,
+      refreshTokenString
     );
 
     const accessExpiresIn = 900; // 15 minutes in seconds
@@ -241,10 +243,9 @@ export class AuthService {
    */
   validateAccessToken(token: string): JwtPayload {
     try {
-      return this.jwtService.verify(token) as JwtPayload;
+      return this.jwtService.verify(token);
     } catch (error) {
       throw new UnauthorizedException('Invalid or expired access token');
     }
   }
 }
-
