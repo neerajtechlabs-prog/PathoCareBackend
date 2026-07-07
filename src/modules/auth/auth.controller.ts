@@ -8,14 +8,17 @@ import {
   BadRequestException,
   Headers,
   Req,
+  Get,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { TenantDataSourceService } from '../../database/datasources/tenant.datasource';
 import { UsersRepository } from '../users/users.repository';
 import { LoginDto } from './dtos/login.dto';
 import { AuthResponseDto } from './dtos/auth-response.dto';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @ApiTags('auth')
 @Controller(['auth', 'api/auth'])
@@ -27,6 +30,21 @@ export class AuthController {
     private tenantDSService: TenantDataSourceService,
     private usersRepository: UsersRepository,
   ) {}
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current authenticated user profile' })
+  @ApiResponse({ status: 200, description: 'Authenticated user returned' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  getProfile(@Req() req: Request & { user?: { sub?: string; email?: string; tenantSlug?: string; role?: string } }) {
+    return {
+      id: req.user?.sub,
+      email: req.user?.email,
+      tenantSlug: req.user?.tenantSlug,
+      role: req.user?.role,
+    };
+  }
 
   @Post('login')
   @ApiOperation({ summary: 'User login with email and password' })

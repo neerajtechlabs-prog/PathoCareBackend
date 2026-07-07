@@ -10,6 +10,8 @@ import { DatabaseModule } from '../../database/database.module';
 import { TenantModule } from '../tenant/tenant.module';
 import { UsersRepository } from '../users/users.repository';
 import { User } from '../../database/entities/tenant/user.entity';
+import { RolesGuard } from './guards/roles.guard';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Module({
   imports: [
@@ -27,9 +29,9 @@ import { User } from '../../database/entities/tenant/user.entity';
     DatabaseModule,
     TenantModule,
   ],
-  providers: [AuthService, JwtStrategy, UsersRepository],
+  providers: [AuthService, JwtStrategy, UsersRepository, JwtAuthGuard, RolesGuard],
   controllers: [AuthController],
-  exports: [AuthService, JwtModule, UsersRepository],
+  exports: [AuthService, JwtModule, UsersRepository, JwtAuthGuard, RolesGuard],
 })
 export class AuthModule {}
 
