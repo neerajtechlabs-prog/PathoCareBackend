@@ -7,38 +7,38 @@ export class Patient {
   id: string = uuidv4();
 
   @Column('varchar', { length: 100, unique: true })
-  uid: string;
+  uid!: string;
 
   @Column('varchar', { length: 255 })
-  name: string;
+  name!: string;
 
   @Column('varchar', { length: 20, nullable: true })
-  phone: string;
+  phone!: string;
 
   @Column('varchar', { length: 255, nullable: true })
-  email: string;
+  email!: string;
 
   @Column('varchar', { length: 20, nullable: true })
-  gender: string;
+  gender!: string;
 
   @Column('date', { nullable: true })
-  dateOfBirth: Date;
+  dateOfBirth!: Date;
 
   @Column('text', { nullable: true })
-  address: string;
+  address!: string;
 
   @Column('boolean', { default: true })
-  isActive: boolean;
+  isActive!: boolean;
 
   @Column('uuid', { nullable: true })
-  createdBy: string;
+  createdBy!: string;
 
   @Column('uuid', { nullable: true })
-  updatedBy: string;
+  updatedBy!: string;
 
   @CreateDateColumn({ type: 'timestamp' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn({ type: 'timestamp' })
-  updatedAt: Date;
+  updatedAt!: Date;
 }

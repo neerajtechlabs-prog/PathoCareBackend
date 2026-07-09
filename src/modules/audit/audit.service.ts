@@ -48,6 +48,10 @@ export class AuditService {
     'patients.created',
     'patients.updated',
     'patients.deleted',
+    'bookings.created',
+    'bookings.payment_validated',
+    'bookings.cancelled',
+    'bookings.receipt.created',
   ]);
 
   constructor(private readonly tenantDataSourceService: TenantDataSourceService) {}

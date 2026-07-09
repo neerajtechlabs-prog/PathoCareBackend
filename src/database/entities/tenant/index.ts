@@ -9,3 +9,4 @@ export { Doctor } from './doctor.entity';
 export { Patient } from './patient.entity';
 export { Booking, BookingStatus } from './booking.entity';
 export { BookingTest } from './booking-test.entity';
+export { BookingReceipt } from './booking-receipt.entity';

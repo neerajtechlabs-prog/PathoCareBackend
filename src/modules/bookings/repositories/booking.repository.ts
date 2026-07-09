@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { Booking } from '../../../database/entities/tenant/booking.entity';
-import { BookingTest } from '../../../database/entities/tenant/booking-test.entity';
 
 @Injectable()
 export class BookingRepository {
@@ -17,8 +16,45 @@ export class BookingRepository {
     return tenantDS.getRepository(Booking).save(tenantDS.getRepository(Booking).create(data));
   }
 
-  async createBookingTest(tenantDS: DataSource, data: Partial<BookingTest>): Promise<BookingTest> {
-    return tenantDS.getRepository(BookingTest).save(tenantDS.getRepository(BookingTest).create(data));
+  async update(tenantDS: DataSource, id: string, data: Partial<Booking>): Promise<Booking | null> {
+    await tenantDS.getRepository(Booking).update(id, data);
+    return this.findById(tenantDS, id);
+  }
+
+  async search(
+    tenantDS: DataSource,
+    query?: string,
+    status?: string,
+    fromDate?: string,
+    toDate?: string,
+    page = 1,
+    perPage = 20,
+  ): Promise<{ items: Booking[]; total: number; page: number; perPage: number }> {
+    const repo = tenantDS.getRepository(Booking);
+    const qb = repo.createQueryBuilder('booking');
+
+    if (query) {
+      qb.andWhere(
+        '(booking.bookingNumber ILIKE :query OR booking.phone ILIKE :query OR booking.email ILIKE :query OR booking.patientId::text ILIKE :query)',
+        { query: `%${query}%` },
+      );
+    }
+
+    if (status) {
+      qb.andWhere('booking.status = :status', { status });
+    }
+
+    if (fromDate) {
+      qb.andWhere('booking.preferredDate >= :fromDate', { fromDate });
+    }
+
+    if (toDate) {
+      qb.andWhere('booking.preferredDate <= :toDate', { toDate });
+    }
+
+    const [items, total] = await qb.orderBy('booking.createdAt', 'DESC').skip((page - 1) * perPage).take(perPage).getManyAndCount();
+
+    return { items, total, page, perPage };
   }
 
   async count(tenantDS: DataSource): Promise<number> {

@@ -1,11 +1,10 @@
-import { BullModuleOptions, BullModuleAsyncOptions } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
 import { QueueName } from './queue.types';
 
 /**
  * Queue configuration factory
  */
-export const getQueueConfig = (configService: ConfigService): BullModuleOptions => ({
+export const getQueueConfig = (configService: ConfigService): any => ({
   connection: {
     host: configService.get<string>('REDIS_HOST') || 'localhost',
     port: configService.get<number>('REDIS_PORT') || 6379,
@@ -20,7 +19,7 @@ export const getQueueConfig = (configService: ConfigService): BullModuleOptions 
 /**
  * Async configuration for BullModule
  */
-export const getQueueAsyncConfig = (): BullModuleAsyncOptions => ({
+export const getQueueAsyncConfig = (): any => ({
   useFactory: (configService: ConfigService) => getQueueConfig(configService),
   inject: [ConfigService],
 });

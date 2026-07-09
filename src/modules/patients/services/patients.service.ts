@@ -1,5 +1,5 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { TenantDataSourceService } from '../../database/datasources/tenant.datasource';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { TenantDataSourceService } from '../../../database/datasources/tenant.datasource';
 import { AuditService } from '../../audit/audit.service';
 import { PatientRepository } from '../repositories/patient.repository';
 import { Patient } from '../../../database/entities/tenant/patient.entity';
@@ -7,7 +7,6 @@ import { buildPatientUid } from '../utils/patient-uid.util';
 
 @Injectable()
 export class PatientsService {
-  private readonly logger = new Logger(PatientsService.name);
 
   constructor(
     private readonly tenantDSService: TenantDataSourceService,
@@ -65,6 +64,10 @@ export class PatientsService {
       updatedBy: userId,
     });
 
+    if (!updated) {
+      throw new NotFoundException(`Patient ${patientId} not found`);
+    }
+
     await this.auditService.logEvent({
       tenantSlug,
       action: 'patients.updated',
@@ -72,7 +75,7 @@ export class PatientsService {
       entityId: patientId,
       userId,
       oldValues: { uid: existing.uid, name: existing.name },
-      newValues: { uid: updated?.uid, name: updated?.name },
+      newValues: { uid: updated.uid, name: updated.name },
     });
 
     return updated;

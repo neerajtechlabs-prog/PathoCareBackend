@@ -9,7 +9,6 @@ import {
   Query,
   Headers,
   UseGuards,
-  Logger,
   Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
@@ -17,15 +16,13 @@ import { Request } from 'express';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
-import { UserRole } from '../../database/entities/tenant/user.entity';
+import { UserRole } from '../../../database/entities/tenant/user.entity';
 import { SampleTypeService } from '../services/sample-type.service';
 import { CreateSampleTypeDto, UpdateSampleTypeDto, SampleTypeResponseDto } from '../dtos';
 
 @ApiTags('sample-types')
 @Controller(['sample-types', 'api/sample-types'])
 export class SampleTypeController {
-  private readonly logger = new Logger(SampleTypeController.name);
-
   constructor(private readonly sampleTypeService: SampleTypeService) {}
 
   @Get()

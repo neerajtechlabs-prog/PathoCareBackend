@@ -1,8 +1,8 @@
-import { IsBoolean, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsBoolean, IsOptional, IsString } from 'class-validator';
 
 export class CreateTestDto {
   @IsString()
-  name: string;
+  name!: string;
 
   @IsOptional()
   @IsString()
@@ -57,7 +57,7 @@ export class UpdateTestDto {
 
 export class CreateTestParameterDto {
   @IsString()
-  name: string;
+  name!: string;
 
   @IsOptional()
   @IsString()

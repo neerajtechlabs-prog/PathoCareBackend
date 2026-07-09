@@ -42,7 +42,8 @@ export class PatientsController {
   @Roles(UserRole.RECEPTIONIST, UserRole.LAB_ADMIN, UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
   async create(@Headers('x-tenant-slug') tenantSlug: string, @Body() body: CreatePatientDto, @Req() req: Request & { user?: { sub?: string } }) {
-    return this.patientsService.create(tenantSlug, body, req.user?.sub || 'system');
+    const payload: Partial<any> = { ...body, dateOfBirth: body.dateOfBirth ? new Date(body.dateOfBirth) : undefined };
+    return this.patientsService.create(tenantSlug, payload, req.user?.sub || 'system');
   }
 
   @Put(':id')
@@ -50,7 +51,8 @@ export class PatientsController {
   @Roles(UserRole.RECEPTIONIST, UserRole.LAB_ADMIN, UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
   async update(@Headers('x-tenant-slug') tenantSlug: string, @Param('id') patientId: string, @Body() body: UpdatePatientDto, @Req() req: Request & { user?: { sub?: string } }) {
-    return this.patientsService.update(tenantSlug, patientId, body, req.user?.sub || 'system');
+    const payload: Partial<any> = { ...body, dateOfBirth: body.dateOfBirth ? new Date(body.dateOfBirth) : undefined };
+    return this.patientsService.update(tenantSlug, patientId, payload, req.user?.sub || 'system');
   }
 
   @Delete(':id')

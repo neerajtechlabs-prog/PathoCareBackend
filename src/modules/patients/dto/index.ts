@@ -2,7 +2,7 @@ import { IsEmail, IsOptional, IsString, IsDateString, IsBoolean } from 'class-va
 
 export class CreatePatientDto {
   @IsString()
-  name: string;
+  name!: string;
 
   @IsOptional()
   @IsString()

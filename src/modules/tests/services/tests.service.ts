@@ -1,5 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { TenantDataSourceService } from '../../database/datasources/tenant.datasource';
+import { TenantDataSourceService } from '../../../database/datasources/tenant.datasource';
 import { AuditService } from '../../audit/audit.service';
 import { TestRepository, TestParameterRepository } from '../repositories';
 import { TestCatalog } from '../../../database/entities/tenant/test-catalog.entity';
@@ -41,7 +41,8 @@ export class TestsService {
     const existing = await this.testRepository.findById(tenantDS, id);
     if (!existing) throw new NotFoundException(`Test ${id} not found`);
     const updated = await this.testRepository.update(tenantDS, id, { ...data, updatedBy: userId });
-    await this.auditService.logEvent({ tenantSlug, action: 'tests.updated', entityType: 'test', entityId: id, userId, oldValues: { name: existing.name }, newValues: { name: updated?.name } });
+    if (!updated) throw new NotFoundException(`Test ${id} not found`);
+    await this.auditService.logEvent({ tenantSlug, action: 'tests.updated', entityType: 'test', entityId: id, userId, oldValues: { name: existing.name }, newValues: { name: updated.name } });
     return updated;
   }
 
@@ -71,7 +72,8 @@ export class TestsService {
     const existing = await this.testParameterRepository.findById(tenantDS, parameterId);
     if (!existing) throw new NotFoundException(`Test parameter ${parameterId} not found`);
     const updated = await this.testParameterRepository.update(tenantDS, parameterId, { ...data, updatedBy: userId });
-    await this.auditService.logEvent({ tenantSlug, action: 'test_parameters.updated', entityType: 'test_parameter', entityId: parameterId, userId, oldValues: { name: existing.name }, newValues: { name: updated?.name } });
+    if (!updated) throw new NotFoundException(`Test parameter ${parameterId} not found`);
+    await this.auditService.logEvent({ tenantSlug, action: 'test_parameters.updated', entityType: 'test_parameter', entityId: parameterId, userId, oldValues: { name: existing.name }, newValues: { name: updated.name } });
     return updated;
   }
 

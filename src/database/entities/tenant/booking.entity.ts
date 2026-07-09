@@ -14,47 +14,53 @@ export class Booking {
   id: string = uuidv4();
 
   @Column('varchar', { length: 100, unique: true })
-  bookingNumber: string;
+  bookingNumber!: string;
 
   @Column('uuid')
-  patientId: string;
+  patientId!: string;
 
   @Column('uuid', { nullable: true })
-  doctorId: string;
+  doctorId?: string;
 
   @Column('varchar', { length: 50, default: BookingStatus.PENDING })
-  status: BookingStatus;
+  status!: BookingStatus;
 
   @Column('text', { nullable: true })
-  notes: string;
+  notes?: string;
+
+  @Column('text', { nullable: true })
+  cancellationRemark?: string;
 
   @Column('varchar', { length: 255, nullable: true })
-  email: string;
+  email?: string;
 
   @Column('varchar', { length: 20, nullable: true })
-  phone: string;
+  phone?: string;
 
   @Column('varchar', { length: 50, nullable: true })
-  paymentMode: string;
+  paymentMode?: string;
 
   @Column('numeric', { precision: 10, scale: 2, default: 0 })
-  amount: number;
+  amount!: number;
+
+  @Column('numeric', { precision: 10, scale: 2, default: 0 })
+  paidAmount!: number;
 
   @Column('boolean', { default: false })
-  paymentVerified: boolean;
+  paymentVerified!: boolean;
 
   @Column('date', { nullable: true })
-  preferredDate: Date;
+  preferredDate?: Date;
 
   @Column('uuid', { nullable: true })
-  createdBy: string;
+  createdBy?: string;
 
   @Column('uuid', { nullable: true })
-  updatedBy: string;
+  updatedBy?: string;
 
   @CreateDateColumn({ type: 'timestamp' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn({ type: 'timestamp' })
-  updatedAt: Date;
+  updatedAt!: Date;
 }

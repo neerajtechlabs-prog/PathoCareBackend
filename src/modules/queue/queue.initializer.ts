@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Worker } from 'bullmq';
-import { ReportProcessor, NotificationProcessor, ExportProcessor } from '../processors';
+import { ReportProcessor, NotificationProcessor, ExportProcessor } from './processors';
 
 /**
  * Queue Initializer
@@ -61,19 +61,20 @@ export class QueueInitializer implements OnModuleInit, OnModuleDestroy {
       const workerName = ['Reports', 'Notifications', 'Exports'][index];
 
       worker.on('completed', job => {
-        this.logger.debug(`[${workerName}] Job ${job.id} completed`);
+        this.logger.debug(`[${workerName}] Job ${job?.id ?? 'unknown'} completed`);
       });
 
       worker.on('failed', (job, error) => {
-        this.logger.warn(`[${workerName}] Job ${job.id} failed: ${error.message}`);
+        this.logger.warn(`[${workerName}] Job ${job?.id ?? 'unknown'} failed: ${error?.message ?? String(error)}`);
       });
 
       worker.on('error', error => {
         this.logger.error(`[${workerName}] Worker error:`, error);
       });
 
-      worker.on('stalled', job => {
-        this.logger.warn(`[${workerName}] Job ${job.id} stalled`);
+      worker.on('stalled', (job: any) => {
+        const jobId = typeof job === 'string' ? job : (job?.id ?? 'unknown');
+        this.logger.warn(`[${workerName}] Job ${jobId} stalled`);
       });
     });
   }

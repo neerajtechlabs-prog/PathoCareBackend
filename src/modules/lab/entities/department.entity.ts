@@ -12,31 +12,31 @@ export class Department {
   id: string = uuidv4();
 
   @Column('uuid')
-  labId: string;
+  labId!: string;
 
   @Column('varchar', { length: 255 })
-  name: string;
+  name!: string;
 
   @Column('text', { nullable: true })
-  description: string;
+  description!: string;
 
   @Column('boolean', { default: true })
-  isActive: boolean;
+  isActive!: boolean;
 
   @Column('uuid', { nullable: true })
-  createdBy: string;
+  createdBy!: string;
 
   @Column('uuid', { nullable: true })
-  updatedBy: string;
+  updatedBy!: string;
 
   @CreateDateColumn({ type: 'timestamp' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn({ type: 'timestamp' })
-  updatedAt: Date;
+  updatedAt!: Date;
 
   // Relations
   @ManyToOne(() => Lab, lab => lab.departments)
   @JoinColumn({ name: 'labId' })
-  lab: Lab;
+  lab!: Lab;
 }

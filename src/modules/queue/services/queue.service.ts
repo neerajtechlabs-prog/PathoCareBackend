@@ -43,7 +43,7 @@ export class QueueService {
       });
 
       this.logger.log(`[${data.tenantSlug}] Enqueued PDF report job ${job.id} for booking ${data.bookingId}`);
-      return job.id;
+      return job.id ?? '';
     } catch (error) {
       this.logger.error(`Failed to enqueue PDF report job:`, error);
       throw error;
@@ -68,7 +68,7 @@ export class QueueService {
       });
 
       this.logger.log(`[${data.tenantSlug}] Enqueued SMS job ${job.id} to ${data.phoneNumber}`);
-      return job.id;
+      return job.id ?? '';
     } catch (error) {
       this.logger.error(`Failed to enqueue SMS job:`, error);
       throw error;
@@ -91,7 +91,7 @@ export class QueueService {
       });
 
       this.logger.log(`[${data.tenantSlug}] Enqueued email job ${job.id} to ${data.to}`);
-      return job.id;
+      return job.id ?? '';
     } catch (error) {
       this.logger.error(`Failed to enqueue email job:`, error);
       throw error;
@@ -114,7 +114,7 @@ export class QueueService {
       });
 
       this.logger.log(`[${data.tenantSlug}] Enqueued WhatsApp job ${job.id} to ${data.phoneNumber}`);
-      return job.id;
+      return job.id ?? '';
     } catch (error) {
       this.logger.error(`Failed to enqueue WhatsApp job:`, error);
       throw error;
@@ -139,7 +139,7 @@ export class QueueService {
       });
 
       this.logger.log(`[${data.tenantSlug}] Enqueued CSV export job ${job.id} for user ${data.userId}`);
-      return job.id;
+      return job.id ?? '';
     } catch (error) {
       this.logger.error(`Failed to enqueue CSV export job:`, error);
       throw error;
@@ -162,7 +162,7 @@ export class QueueService {
       });
 
       this.logger.log(`[${data.tenantSlug}] Enqueued Excel export job ${job.id} for user ${data.userId}`);
-      return job.id;
+      return job.id ?? '';
     } catch (error) {
       this.logger.error(`Failed to enqueue Excel export job:`, error);
       throw error;

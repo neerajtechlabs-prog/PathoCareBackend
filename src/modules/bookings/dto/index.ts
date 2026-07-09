@@ -1,8 +1,18 @@
-import { IsArray, IsDateString, IsEmail, IsNotEmpty, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import {
+  IsArray,
+  IsDateString,
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsPositive,
+  IsString,
+  IsUUID,
+  Min,
+} from 'class-validator';
 
 export class CreateBookingDto {
   @IsUUID()
-  patientId: string;
+  patientId!: string;
 
   @IsOptional()
   @IsUUID()
@@ -46,4 +56,23 @@ export class UpdateBookingDto {
   @IsOptional()
   @IsString()
   notes?: string;
+}
+
+export class CancelBookingDto {
+  @IsNotEmpty()
+  @IsString()
+  remark!: string;
+}
+
+export class CreateReceiptDto {
+  @IsPositive()
+  amount!: number;
+
+  @IsNotEmpty()
+  @IsString()
+  paymentMode!: string;
+
+  @IsOptional()
+  @IsString()
+  remark?: string;
 }

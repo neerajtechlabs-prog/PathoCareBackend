@@ -1,5 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { TenantDataSourceService } from '../../database/datasources/tenant.datasource';
+import { TenantDataSourceService } from '../../../database/datasources/tenant.datasource';
 import { AuditService } from '../../audit/audit.service';
 import { DepartmentRepository } from '../repositories/department.repository';
 import { CreateDepartmentDto, UpdateDepartmentDto } from '../dtos';
@@ -70,6 +70,10 @@ export class DepartmentService {
       ...updateDeptDto,
       updatedBy: userId,
     });
+
+    if (!updated) {
+      throw new NotFoundException(`Department ${deptId} not found`);
+    }
 
     await this.auditService.logEvent({
       tenantSlug,

@@ -74,9 +74,9 @@ This tracker reflects the current implementation status of the backend project a
 - ✅ Payment validation and booking number generation
 
 ### Week 8 — Booking Screen Part 2 + Balance Receipt
-- ⏳ Booking list filters and pagination
-- ⏳ Cancellation flow and audit logging
-- ⏳ Balance receipt handling
+- ✅ Booking list filters and pagination
+- ✅ Cancellation flow and audit logging
+- ✅ Balance receipt handling
 
 ---
 

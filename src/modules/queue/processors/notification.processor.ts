@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Job, Worker } from 'bullmq';
 import { SendSmsJobData, SendEmailJobData, SendWhatsappJobData, QueueName } from '../queue.types';
 import { BaseProcessor } from './base.processor';
@@ -51,7 +51,7 @@ export class NotificationProcessor extends BaseProcessor {
    * In production: use Twilio or MSG91 API
    */
   private async processSms(job: Job<SendSmsJobData>): Promise<any> {
-    const { tenantSlug, phoneNumber, message, recipientType, referenceId } = job.data;
+    const { tenantSlug, phoneNumber, recipientType, referenceId } = job.data;
 
     this.logger.log(`[${tenantSlug}] Sending SMS to ${phoneNumber} (${recipientType})`);
 
@@ -73,7 +73,7 @@ export class NotificationProcessor extends BaseProcessor {
    * In production: use SendGrid, SES, or similar
    */
   private async processEmail(job: Job<SendEmailJobData>): Promise<any> {
-    const { tenantSlug, to, subject, template, context, referenceId } = job.data;
+    const { tenantSlug, to, subject, template, referenceId } = job.data;
 
     this.logger.log(`[${tenantSlug}] Sending email to ${to} (template: ${template})`);
 
@@ -97,7 +97,7 @@ export class NotificationProcessor extends BaseProcessor {
    * In production: use Twilio WhatsApp or Meta API
    */
   private async processWhatsapp(job: Job<SendWhatsappJobData>): Promise<any> {
-    const { tenantSlug, phoneNumber, templateId, parameters, referenceId } = job.data;
+    const { tenantSlug, phoneNumber, templateId, referenceId } = job.data;
 
     this.logger.log(`[${tenantSlug}] Sending WhatsApp to ${phoneNumber} (template: ${templateId})`);
 

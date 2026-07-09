@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Job, Worker } from 'bullmq';
 import { GeneratePdfReportJobData, QueueName } from '../queue.types';
 import { BaseProcessor } from './base.processor';
@@ -24,7 +24,7 @@ export class ReportProcessor extends BaseProcessor {
    */
   async process(job: Job<GeneratePdfReportJobData>): Promise<any> {
     const startTime = Date.now();
-    const { tenantSlug, bookingId, reportTemplate, patientEmail, patientPhone } = job.data;
+    const { tenantSlug, bookingId, patientEmail, patientPhone } = job.data;
 
     try {
       this.logger.log(`[${tenantSlug}] Generating PDF report for booking ${bookingId}`);
@@ -56,7 +56,7 @@ export class ReportProcessor extends BaseProcessor {
   /**
    * Simulate report generation (placeholder for PDF generation logic)
    */
-  private async simulateReportGeneration(bookingId: string): Promise<void> {
+  private async simulateReportGeneration(_bookingId: string): Promise<void> {
     // In production: use Puppeteer to generate PDF
     // await this.pdfService.generate(html, options)
     return new Promise(resolve => setTimeout(resolve, 500));

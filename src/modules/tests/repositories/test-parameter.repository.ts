@@ -16,13 +16,13 @@ export class TestParameterRepository {
     return tenantDS.getRepository(TestParameter).save(tenantDS.getRepository(TestParameter).create(data));
   }
 
-  async update(tenantDS: DataSource, id: string, data: Partial<TestParameter>): Promise<TestParameter> {
+  async update(tenantDS: DataSource, id: string, data: Partial<TestParameter>): Promise<TestParameter | null> {
     await tenantDS.getRepository(TestParameter).update(id, data);
     return this.findById(tenantDS, id);
   }
 
   async delete(tenantDS: DataSource, id: string): Promise<boolean> {
     const result = await tenantDS.getRepository(TestParameter).delete(id);
-    return result.affected > 0;
+    return (result.affected ?? 0) > 0;
   }
 }

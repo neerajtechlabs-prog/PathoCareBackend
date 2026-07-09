@@ -132,10 +132,12 @@ export async function ensureLabCrudTables(queryRunner: QueryRunnerLike, schemaNa
       "doctorId" UUID,
       status VARCHAR(50) DEFAULT 'Pending',
       notes TEXT,
+      "cancellationRemark" TEXT,
       email VARCHAR(255),
       phone VARCHAR(20),
       "paymentMode" VARCHAR(50),
       amount NUMERIC(10,2) DEFAULT 0,
+      "paidAmount" NUMERIC(10,2) DEFAULT 0,
       "paymentVerified" BOOLEAN DEFAULT false,
       "preferredDate" DATE,
       "createdBy" UUID,
@@ -143,6 +145,12 @@ export async function ensureLabCrudTables(queryRunner: QueryRunnerLike, schemaNa
       "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+  `);
+
+  await queryRunner.query(`
+    ALTER TABLE ${schema}.bookings
+    ADD COLUMN IF NOT EXISTS "cancellationRemark" TEXT,
+    ADD COLUMN IF NOT EXISTS "paidAmount" NUMERIC(10,2) DEFAULT 0;
   `);
 
   await queryRunner.query(`
@@ -156,5 +164,23 @@ export async function ensureLabCrudTables(queryRunner: QueryRunnerLike, schemaNa
       "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT fk_booking_tests_booking FOREIGN KEY ("bookingId") REFERENCES ${schema}.bookings(id) ON DELETE CASCADE
     );
+  `);
+
+  await queryRunner.query(`
+    CREATE TABLE IF NOT EXISTS ${schema}.booking_receipts (
+      id UUID PRIMARY KEY,
+      "receiptNumber" VARCHAR(100) NOT NULL UNIQUE,
+      "bookingId" UUID NOT NULL,
+      amount NUMERIC(10,2) DEFAULT 0,
+      "paymentMode" VARCHAR(50) NOT NULL,
+      remark TEXT,
+      "createdBy" UUID,
+      "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT fk_booking_receipts_booking FOREIGN KEY ("bookingId") REFERENCES ${schema}.bookings(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_${schema}_booking_receipts_booking_id ON ${schema}.booking_receipts("bookingId");
+    CREATE INDEX IF NOT EXISTS idx_${schema}_booking_receipts_created_at ON ${schema}.booking_receipts("createdAt" DESC);
   `);
 }

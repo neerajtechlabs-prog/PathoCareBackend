@@ -7,32 +7,32 @@ export class Doctor {
   id: string = uuidv4();
 
   @Column('varchar', { length: 255 })
-  name: string;
+  name!: string;
 
   @Column('varchar', { length: 255, nullable: true })
-  specialization: string;
+  specialization!: string;
 
   @Column('varchar', { length: 20, nullable: true })
-  phone: string;
+  phone!: string;
 
   @Column('varchar', { length: 255, nullable: true })
-  email: string;
+  email!: string;
 
   @Column('varchar', { length: 100, nullable: true })
-  licenseNumber: string;
+  licenseNumber!: string;
 
   @Column('boolean', { default: true })
-  isActive: boolean;
+  isActive!: boolean;
 
   @Column('uuid', { nullable: true })
-  createdBy: string;
+  createdBy!: string;
 
   @Column('uuid', { nullable: true })
-  updatedBy: string;
+  updatedBy!: string;
 
   @CreateDateColumn({ type: 'timestamp' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn({ type: 'timestamp' })
-  updatedAt: Date;
+  updatedAt!: Date;
 }

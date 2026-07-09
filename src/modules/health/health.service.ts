@@ -7,7 +7,7 @@ import { ConfigService } from '@nestjs/config';
 @Injectable()
 export class HealthService {
   private readonly logger = new Logger(HealthService.name);
-  private redisClient: redis.RedisClientType | null = null;
+  
 
   constructor(
     @InjectDataSource() private dataSource: DataSource,
@@ -40,10 +40,9 @@ export class HealthService {
    */
   async getRedisHealth(): Promise<any> {
     try {
-      const client = redis.createClient({
-        host: this.configService.get<string>('REDIS_HOST') || 'localhost',
-        port: this.configService.get<number>('REDIS_PORT') || 6379,
-      });
+      const host = this.configService.get<string>('REDIS_HOST') || 'localhost';
+      const port = this.configService.get<number>('REDIS_PORT') || 6379;
+      const client = redis.createClient({ url: `redis://${host}:${port}` });
 
       await client.connect();
       const pong = await client.ping();

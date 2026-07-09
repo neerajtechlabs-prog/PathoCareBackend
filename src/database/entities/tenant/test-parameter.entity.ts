@@ -8,33 +8,33 @@ export class TestParameter {
   id: string = uuidv4();
 
   @Column('uuid')
-  testId: string;
+  testId!: string;
 
   @Column('varchar', { length: 255 })
-  name: string;
+  name!: string;
 
   @Column('varchar', { length: 100, nullable: true })
-  unit: string;
+  unit!: string;
 
   @Column('varchar', { length: 100, nullable: true })
-  referenceRange: string;
+  referenceRange!: string;
 
   @Column('boolean', { default: true })
-  isActive: boolean;
+  isActive!: boolean;
 
   @Column('uuid', { nullable: true })
-  createdBy: string;
+  createdBy!: string;
 
   @Column('uuid', { nullable: true })
-  updatedBy: string;
+  updatedBy!: string;
 
   @CreateDateColumn({ type: 'timestamp' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn({ type: 'timestamp' })
-  updatedAt: Date;
+  updatedAt!: Date;
 
   @ManyToOne(() => TestCatalog, test => test.parameters)
   @JoinColumn({ name: 'testId' })
-  test: TestCatalog;
+  test!: TestCatalog;
 }

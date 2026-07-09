@@ -2,10 +2,10 @@ import { IsString, IsOptional, IsBoolean, IsUUID } from 'class-validator';
 
 export class CreateDepartmentDto {
   @IsUUID()
-  labId: string;
+  labId!: string;
 
   @IsString()
-  name: string;
+  name!: string;
 
   @IsOptional()
   @IsString()
@@ -27,11 +27,11 @@ export class UpdateDepartmentDto {
 }
 
 export class DepartmentResponseDto {
-  id: string;
-  labId: string;
-  name: string;
+  id!: string;
+  labId!: string;
+  name!: string;
   description?: string;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  isActive!: boolean;
+  createdAt!: Date;
+  updatedAt!: Date;
 }

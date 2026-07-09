@@ -2,7 +2,7 @@ import { IsString, IsOptional, IsEmail, IsObject, IsBoolean } from 'class-valida
 
 export class CreateLabDto {
   @IsString()
-  name: string;
+  name!: string;
 
   @IsOptional()
   @IsString()
@@ -48,15 +48,15 @@ export class UpdateLabDto {
 }
 
 export class LabResponseDto {
-  id: string;
-  name: string;
+  id!: string;
+  name!: string;
   address?: string;
   phone?: string;
   email?: string;
   config?: Record<string, any>;
-  isActive: boolean;
+  isActive!: boolean;
   departmentCount?: number;
   sampleTypeCount?: number;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt!: Date;
+  updatedAt!: Date;
 }

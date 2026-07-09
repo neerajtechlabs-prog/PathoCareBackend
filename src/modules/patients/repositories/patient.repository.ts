@@ -22,14 +22,14 @@ export class PatientRepository {
     return tenantDS.getRepository(Patient).save(tenantDS.getRepository(Patient).create(data));
   }
 
-  async update(tenantDS: DataSource, id: string, data: Partial<Patient>): Promise<Patient> {
+  async update(tenantDS: DataSource, id: string, data: Partial<Patient>): Promise<Patient | null> {
     await tenantDS.getRepository(Patient).update(id, data);
     return this.findById(tenantDS, id);
   }
 
   async delete(tenantDS: DataSource, id: string): Promise<boolean> {
     const result = await tenantDS.getRepository(Patient).delete(id);
-    return result.affected > 0;
+    return (result.affected ?? 0) > 0;
   }
 
   async count(tenantDS: DataSource): Promise<number> {

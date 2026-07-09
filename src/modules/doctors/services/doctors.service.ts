@@ -1,17 +1,15 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { TenantDataSourceService } from '../../database/datasources/tenant.datasource';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { TenantDataSourceService } from '../../../database/datasources/tenant.datasource';
 import { AuditService } from '../../audit/audit.service';
 import { DoctorRepository } from '../repositories/doctor.repository';
 import { Doctor } from '../../../database/entities/tenant/doctor.entity';
 
 @Injectable()
 export class DoctorsService {
-  private readonly logger = new Logger(DoctorsService.name);
-
   constructor(
     private readonly tenantDSService: TenantDataSourceService,
     private readonly auditService: AuditService,
-    private readonly doctorRepository: DoctorRepository,
+    private readonly doctorRepository: DoctorRepository
   ) {}
 
   async findAll(tenantSlug: string, query?: string): Promise<Doctor[]> {
@@ -48,7 +46,12 @@ export class DoctorsService {
     return created;
   }
 
-  async update(tenantSlug: string, doctorId: string, data: Partial<Doctor>, userId: string): Promise<Doctor> {
+  async update(
+    tenantSlug: string,
+    doctorId: string,
+    data: Partial<Doctor>,
+    userId: string
+  ): Promise<Doctor> {
     const tenantDS = await this.tenantDSService.getForTenant(tenantSlug);
     const existing = await this.doctorRepository.findById(tenantDS, doctorId);
     if (!existing) {
@@ -60,6 +63,10 @@ export class DoctorsService {
       updatedBy: userId,
     });
 
+    if (!updated) {
+      throw new NotFoundException(`Doctor ${doctorId} not found`);
+    }
+
     await this.auditService.logEvent({
       tenantSlug,
       action: 'doctors.updated',
@@ -67,7 +74,7 @@ export class DoctorsService {
       entityId: doctorId,
       userId,
       oldValues: { name: existing.name, specialization: existing.specialization },
-      newValues: { name: updated?.name, specialization: updated?.specialization },
+      newValues: { name: updated.name, specialization: updated.specialization },
     });
 
     return updated;

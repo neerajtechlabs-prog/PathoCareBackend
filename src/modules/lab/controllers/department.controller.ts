@@ -8,7 +8,6 @@ import {
   Param,
   Headers,
   UseGuards,
-  Logger,
   Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
@@ -16,15 +15,13 @@ import { Request } from 'express';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
-import { UserRole } from '../../database/entities/tenant/user.entity';
+import { UserRole } from '../../../database/entities/tenant/user.entity';
 import { DepartmentService } from '../services/department.service';
 import { CreateDepartmentDto, UpdateDepartmentDto, DepartmentResponseDto } from '../dtos';
 
 @ApiTags('departments')
 @Controller(['departments', 'api/departments'])
 export class DepartmentController {
-  private readonly logger = new Logger(DepartmentController.name);
-
   constructor(private readonly departmentService: DepartmentService) {}
 
   @Get()

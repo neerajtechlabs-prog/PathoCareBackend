@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Job, Worker } from 'bullmq';
 import { ExportResultsCsvJobData, ExportMisExcelJobData, QueueName } from '../queue.types';
 import { BaseProcessor } from './base.processor';
@@ -48,7 +48,7 @@ export class ExportProcessor extends BaseProcessor {
    * In production: fetch results from DB and generate CSV
    */
   private async processResultsCsv(job: Job<ExportResultsCsvJobData>): Promise<any> {
-    const { tenantSlug, userId, filters, exportType, startDate, endDate } = job.data;
+    const { tenantSlug, userId, filters, exportType } = job.data;
 
     this.logger.log(`[${tenantSlug}] Exporting results CSV for user ${userId} (type: ${exportType})`);
 

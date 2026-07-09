@@ -1,10 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { SampleType } from '../../../database/entities/tenant/sample-type.entity';
 
 @Injectable()
 export class SampleTypeRepository {
-  private readonly logger = new Logger(SampleTypeRepository.name);
+  
 
   async findById(tenantDS: DataSource, id: string): Promise<SampleType | null> {
     return tenantDS.getRepository(SampleType).findOne({
@@ -61,14 +61,14 @@ export class SampleTypeRepository {
     return tenantDS.getRepository(SampleType).save(sample);
   }
 
-  async update(tenantDS: DataSource, id: string, sampleData: Partial<SampleType>): Promise<SampleType> {
+  async update(tenantDS: DataSource, id: string, sampleData: Partial<SampleType>): Promise<SampleType | null> {
     await tenantDS.getRepository(SampleType).update(id, sampleData);
     return this.findById(tenantDS, id);
   }
 
   async delete(tenantDS: DataSource, id: string): Promise<boolean> {
     const result = await tenantDS.getRepository(SampleType).delete(id);
-    return result.affected > 0;
+    return (result.affected ?? 0) > 0;
   }
 
   async countByLabId(tenantDS: DataSource, labId: string): Promise<number> {

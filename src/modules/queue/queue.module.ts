@@ -3,7 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { BullModule } from '@nestjs/bullmq';
 import { QueueService } from './services/queue.service';
 import { QueueInitializer } from './queue.initializer';
-import { getQueueConfig, QueueName } from './queue.config';
+import { QueueName } from './queue.config';
 
 @Module({
   imports: [

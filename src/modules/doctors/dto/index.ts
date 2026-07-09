@@ -2,7 +2,7 @@ import { IsBoolean, IsEmail, IsOptional, IsString } from 'class-validator';
 
 export class CreateDoctorDto {
   @IsString()
-  name: string;
+  name!: string;
 
   @IsOptional()
   @IsString()

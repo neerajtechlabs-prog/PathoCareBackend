@@ -1,5 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { TenantDataSourceService } from '../../database/datasources/tenant.datasource';
+import { TenantDataSourceService } from '../../../database/datasources/tenant.datasource';
 import { AuditService } from '../../audit/audit.service';
 import { LabRepository } from '../repositories/lab.repository';
 import { CreateLabDto, UpdateLabDto } from '../dtos';
@@ -65,6 +65,10 @@ export class LabService {
       ...updateLabDto,
       updatedBy: userId,
     });
+
+    if (!updated) {
+      throw new NotFoundException(`Lab ${labId} not found`);
+    }
 
     await this.auditService.logEvent({
       tenantSlug,

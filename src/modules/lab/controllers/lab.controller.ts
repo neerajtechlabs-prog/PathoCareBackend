@@ -8,7 +8,6 @@ import {
   Param,
   Headers,
   UseGuards,
-  Logger,
   Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
@@ -16,15 +15,13 @@ import { Request } from 'express';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
-import { UserRole } from '../../database/entities/tenant/user.entity';
+import { UserRole } from '../../../database/entities/tenant/user.entity';
 import { LabService } from '../services/lab.service';
 import { CreateLabDto, UpdateLabDto, LabResponseDto } from '../dtos';
 
 @ApiTags('lab-profile')
 @Controller(['labs', 'api/labs'])
 export class LabController {
-  private readonly logger = new Logger(LabController.name);
-
   constructor(private readonly labService: LabService) {}
 
   @Get()
@@ -32,10 +29,7 @@ export class LabController {
   @ApiOperation({ summary: 'List all labs' })
   @ApiResponse({ status: 200, description: 'Labs listed successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async findAll(
-    @Headers('x-tenant-slug') tenantSlug: string,
-    @Req() req: Request & { user?: { sub?: string } },
-  ): Promise<LabResponseDto[]> {
+  async findAll(@Headers('x-tenant-slug') tenantSlug: string): Promise<LabResponseDto[]> {
     const labs = await this.labService.findAll(tenantSlug);
     return labs.map(lab => ({
       ...lab,

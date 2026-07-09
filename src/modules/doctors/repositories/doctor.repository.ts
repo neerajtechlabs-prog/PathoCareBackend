@@ -22,13 +22,13 @@ export class DoctorRepository {
     return tenantDS.getRepository(Doctor).save(tenantDS.getRepository(Doctor).create(data));
   }
 
-  async update(tenantDS: DataSource, id: string, data: Partial<Doctor>): Promise<Doctor> {
+  async update(tenantDS: DataSource, id: string, data: Partial<Doctor>): Promise<Doctor | null> {
     await tenantDS.getRepository(Doctor).update(id, data);
     return this.findById(tenantDS, id);
   }
 
   async delete(tenantDS: DataSource, id: string): Promise<boolean> {
     const result = await tenantDS.getRepository(Doctor).delete(id);
-    return result.affected > 0;
+    return (result.affected ?? 0) > 0;
   }
 }

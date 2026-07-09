@@ -1,4 +1,4 @@
-import { Entity, PrimaryColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, JoinColumn, ManyToOne } from 'typeorm';
+import { Entity, PrimaryColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { TestParameter } from './test-parameter.entity';
 
@@ -8,38 +8,38 @@ export class TestCatalog {
   id: string = uuidv4();
 
   @Column('varchar', { length: 255 })
-  name: string;
+  name!: string;
 
   @Column('varchar', { length: 100, nullable: true })
-  code: string;
+  code!: string;
 
   @Column('varchar', { length: 255, nullable: true })
-  department: string;
+  department!: string;
 
   @Column('text', { nullable: true })
-  description: string;
+  description!: string;
 
   @Column('varchar', { length: 100, nullable: true })
-  specimenType: string;
+  specimenType!: string;
 
   @Column('varchar', { length: 100, nullable: true })
-  unit: string;
+  unit!: string;
 
   @Column('boolean', { default: true })
-  isActive: boolean;
+  isActive!: boolean;
 
   @Column('uuid', { nullable: true })
-  createdBy: string;
+  createdBy!: string;
 
   @Column('uuid', { nullable: true })
-  updatedBy: string;
+  updatedBy!: string;
 
   @CreateDateColumn({ type: 'timestamp' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn({ type: 'timestamp' })
-  updatedAt: Date;
+  updatedAt!: Date;
 
   @OneToMany(() => TestParameter, parameter => parameter.test, { cascade: true })
-  parameters: TestParameter[];
+  parameters!: TestParameter[];
 }

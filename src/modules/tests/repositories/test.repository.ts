@@ -25,13 +25,13 @@ export class TestRepository {
     return tenantDS.getRepository(TestCatalog).save(tenantDS.getRepository(TestCatalog).create(data));
   }
 
-  async update(tenantDS: DataSource, id: string, data: Partial<TestCatalog>): Promise<TestCatalog> {
+  async update(tenantDS: DataSource, id: string, data: Partial<TestCatalog>): Promise<TestCatalog | null> {
     await tenantDS.getRepository(TestCatalog).update(id, data);
     return this.findById(tenantDS, id);
   }
 
   async delete(tenantDS: DataSource, id: string): Promise<boolean> {
     const result = await tenantDS.getRepository(TestCatalog).delete(id);
-    return result.affected > 0;
+    return (result.affected ?? 0) > 0;
   }
 }

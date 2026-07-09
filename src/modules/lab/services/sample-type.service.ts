@@ -1,5 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { TenantDataSourceService } from '../../database/datasources/tenant.datasource';
+import { TenantDataSourceService } from '../../../database/datasources/tenant.datasource';
 import { AuditService } from '../../audit/audit.service';
 import { SampleTypeRepository } from '../repositories/sample-type.repository';
 import { CreateSampleTypeDto, UpdateSampleTypeDto } from '../dtos';
@@ -91,6 +91,10 @@ export class SampleTypeService {
       ...updateSampleTypeDto,
       updatedBy: userId,
     });
+
+    if (!updated) {
+      throw new NotFoundException(`Sample type ${sampleTypeId} not found`);
+    }
 
     await this.auditService.logEvent({
       tenantSlug,

@@ -1,4 +1,4 @@
-import { Entity, PrimaryColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
+import { Entity, PrimaryColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { Department } from './department.entity';
 import { SampleType } from './sample-type.entity';
@@ -13,16 +13,16 @@ export class Lab {
   id: string = uuidv4();
 
   @Column('varchar', { length: 255, unique: true })
-  name: string;
+  name!: string;
 
   @Column('text', { nullable: true })
-  address: string;
+  address!: string;
 
   @Column('varchar', { length: 20, nullable: true })
-  phone: string;
+  phone!: string;
 
   @Column('varchar', { length: 255, nullable: true })
-  email: string;
+  email!: string;
 
   /**
    * Lab configuration as JSON
@@ -37,27 +37,27 @@ export class Lab {
    * }
    */
   @Column('jsonb', { nullable: true, default: {} })
-  config: Record<string, any>;
+  config!: Record<string, any>;
 
   @Column('boolean', { default: true })
-  isActive: boolean;
+  isActive!: boolean;
 
   @Column('uuid', { nullable: true })
-  createdBy: string;
+  createdBy!: string;
 
   @Column('uuid', { nullable: true })
-  updatedBy: string;
+  updatedBy!: string;
 
   @CreateDateColumn({ type: 'timestamp' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn({ type: 'timestamp' })
-  updatedAt: Date;
+  updatedAt!: Date;
 
   // Relations
   @OneToMany(() => Department, department => department.lab, { cascade: ['soft-remove'] })
-  departments: Department[];
+  departments!: Department[];
 
   @OneToMany(() => SampleType, sampleType => sampleType.lab, { cascade: ['soft-remove'] })
-  sampleTypes: SampleType[];
+  sampleTypes!: SampleType[];
 }

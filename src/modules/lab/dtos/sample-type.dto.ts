@@ -2,13 +2,13 @@ import { IsString, IsOptional, IsBoolean, IsUUID, IsObject } from 'class-validat
 
 export class CreateSampleTypeDto {
   @IsUUID()
-  labId: string;
+  labId!: string;
 
   @IsString()
-  name: string;
+  name!: string;
 
   @IsString()
-  code: string;
+  code!: string;
 
   @IsOptional()
   @IsString()
@@ -54,15 +54,15 @@ export class UpdateSampleTypeDto {
 }
 
 export class SampleTypeResponseDto {
-  id: string;
-  labId: string;
-  name: string;
-  code: string;
+  id!: string;
+  labId!: string;
+  name!: string;
+  code!: string;
   container?: string;
   preservative?: string;
   storageTemperature?: string;
   instructions?: Record<string, any>;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  isActive!: boolean;
+  createdAt!: Date;
+  updatedAt!: Date;
 }

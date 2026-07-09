@@ -1,10 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { Lab } from '../../../database/entities/tenant/lab.entity';
 
 @Injectable()
 export class LabRepository {
-  private readonly logger = new Logger(LabRepository.name);
+  
 
   async findById(tenantDS: DataSource, id: string): Promise<Lab | null> {
     return tenantDS.getRepository(Lab).findOne({
@@ -39,14 +39,14 @@ export class LabRepository {
     return tenantDS.getRepository(Lab).save(lab);
   }
 
-  async update(tenantDS: DataSource, id: string, labData: Partial<Lab>): Promise<Lab> {
+  async update(tenantDS: DataSource, id: string, labData: Partial<Lab>): Promise<Lab | null> {
     await tenantDS.getRepository(Lab).update(id, labData);
     return this.findById(tenantDS, id);
   }
 
   async delete(tenantDS: DataSource, id: string): Promise<boolean> {
     const result = await tenantDS.getRepository(Lab).delete(id);
-    return result.affected > 0;
+    return (result.affected ?? 0) > 0;
   }
 
   async count(tenantDS: DataSource): Promise<number> {
