@@ -1,5 +1,6 @@
 import { DataSource } from 'typeorm';
 import * as argon2 from 'argon2';
+import { ensureLabCrudTables } from './lab-crud-bootstrap';
 
 /**
  * Seed script for PathCare Labs
@@ -171,6 +172,75 @@ async function ensureTenantSeedData(queryRunner: any, tenant: TenantSeedConfig):
     CREATE INDEX IF NOT EXISTS idx_${schemaName}_refresh_tokens_expires_at ON ${schemaName}.refresh_tokens(expires_at);
     `,
   );
+
+  await ensureLabCrudTables(queryRunner, schemaName);
+
+  const seedTests = [
+    {
+      name: 'Complete Blood Count',
+      code: 'CBC',
+      department: 'Hematology',
+      description: 'Routine blood count panel',
+      specimenType: 'Whole Blood',
+      unit: 'panel',
+      parameters: [
+        { name: 'Hemoglobin', unit: 'g/dL', referenceRange: '12.0-16.0' },
+        { name: 'WBC Count', unit: '10^3/uL', referenceRange: '4.0-11.0' },
+        { name: 'Platelet Count', unit: '10^3/uL', referenceRange: '150-450' },
+      ],
+    },
+    {
+      name: 'Lipid Profile',
+      code: 'LIPID',
+      department: 'Biochemistry',
+      description: 'Cholesterol and triglyceride panel',
+      specimenType: 'Serum',
+      unit: 'panel',
+      parameters: [
+        { name: 'Total Cholesterol', unit: 'mg/dL', referenceRange: '<200' },
+        { name: 'Triglycerides', unit: 'mg/dL', referenceRange: '<150' },
+        { name: 'HDL', unit: 'mg/dL', referenceRange: '>40' },
+      ],
+    },
+    {
+      name: 'Urine Routine Examination',
+      code: 'URINE',
+      department: 'Pathology',
+      description: 'Routine urine analyte examination',
+      specimenType: 'Urine',
+      unit: 'panel',
+      parameters: [
+        { name: 'pH', unit: '', referenceRange: '4.5-8.0' },
+        { name: 'Protein', unit: 'mg/dL', referenceRange: 'Negative' },
+      ],
+    },
+  ];
+
+  for (const seedTest of seedTests) {
+    const testInsert = await queryRunner.query(
+      `
+      INSERT INTO ${schemaName}.tests (id, name, code, department, description, "specimenType", unit, "isActive", "createdBy", "updatedBy")
+      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, true, NULL, NULL)
+      ON CONFLICT (id) DO NOTHING
+      RETURNING id
+      `,
+      [seedTest.name, seedTest.code, seedTest.department, seedTest.description, seedTest.specimenType, seedTest.unit],
+    );
+
+    const testId = testInsert?.[0]?.id;
+    if (!testId) continue;
+
+    for (const parameter of seedTest.parameters) {
+      await queryRunner.query(
+        `
+        INSERT INTO ${schemaName}.test_parameters (id, "testId", name, unit, "referenceRange", "isActive", "createdBy", "updatedBy")
+        VALUES (gen_random_uuid(), $1, $2, $3, $4, true, NULL, NULL)
+        ON CONFLICT (id) DO NOTHING
+        `,
+        [testId, parameter.name, parameter.unit, parameter.referenceRange],
+      );
+    }
+  }
 
   // Insert seed_proof row
   await queryRunner.query(

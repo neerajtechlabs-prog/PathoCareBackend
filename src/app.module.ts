@@ -9,6 +9,9 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { HealthModule } from './modules/health/health.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { QueueModule } from './modules/queue/queue.module';
+import { LabModule } from './modules/lab/lab.module';
+import { TestsModule } from './modules/tests/tests.module';
 
 @Module({
   imports: [
@@ -52,6 +55,9 @@ import { AuditModule } from './modules/audit/audit.module';
     UsersModule,
     HealthModule,
     AuditModule,
+    QueueModule,
+    LabModule,
+    TestsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
