@@ -6,7 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "prebuild": "rimraf dist",
+    "prebuild": "node -e \"try{const fs=require('fs'); if(fs.existsSync('dist')) fs.rmSync('dist',{ recursive:true, force:true });}catch(e){}\"",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",

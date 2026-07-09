@@ -19,6 +19,18 @@ export class TestParameter {
   @Column('varchar', { length: 100, nullable: true })
   referenceRange!: string;
 
+  @Column('double precision', { nullable: true })
+  normalMin!: number | null;
+
+  @Column('double precision', { nullable: true })
+  normalMax!: number | null;
+
+  @Column('double precision', { nullable: true })
+  criticalMin!: number | null;
+
+  @Column('double precision', { nullable: true })
+  criticalMax!: number | null;
+
   @Column('boolean', { default: true })
   isActive!: boolean;
 

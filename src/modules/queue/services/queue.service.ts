@@ -121,6 +121,29 @@ export class QueueService {
     }
   }
 
+  /**
+   * Enqueue a raw notification job to the notifications queue with a custom job name
+   */
+  async enqueueNotificationJob(name: string, data: Record<string, any>): Promise<string> {
+    try {
+      const job = await this.notificationsQueue.add(name, data, {
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 2000,
+        },
+        removeOnComplete: true,
+        removeOnFail: false,
+      });
+
+      this.logger.log(`[${data?.tenantSlug ?? 'unknown'}] Enqueued notification job ${job.id} (${name})`);
+      return job.id ?? '';
+    } catch (error) {
+      this.logger.error(`Failed to enqueue notification job (${name}):`, error);
+      throw error;
+    }
+  }
+
   // ============ EXPORT JOBS ============
 
   /**

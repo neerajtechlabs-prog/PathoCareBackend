@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { BullModule } from '@nestjs/bullmq';
 import { QueueService } from './services/queue.service';
+import { DatabaseModule } from '../../database/database.module';
 import { QueueInitializer } from './queue.initializer';
 import { QueueName } from './queue.config';
 
@@ -29,6 +30,7 @@ import { QueueName } from './queue.config';
       { name: QueueName.NOTIFICATIONS },
       { name: QueueName.EXPORTS },
     ),
+    DatabaseModule,
   ],
   providers: [QueueService, QueueInitializer],
   exports: [QueueService],

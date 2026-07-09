@@ -1,7 +1,9 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Worker } from 'bullmq';
-import { ReportProcessor, NotificationProcessor, ExportProcessor } from './processors';
+import { ReportProcessor, NotificationProcessor, ExportProcessor, ResultsEvaluateProcessor } from './processors';
+import { TenantDataSourceService } from '../../database/datasources/tenant.datasource';
+import { QueueService } from './services/queue.service';
 
 /**
  * Queue Initializer
@@ -12,7 +14,7 @@ export class QueueInitializer implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(QueueInitializer.name);
   private workers: Worker[] = [];
 
-  constructor(private configService: ConfigService) {}
+  constructor(private configService: ConfigService, private tenantDSService: TenantDataSourceService, private queueService: QueueService) {}
 
   /**
    * Initialize workers on module startup
@@ -28,8 +30,9 @@ export class QueueInitializer implements OnModuleInit, OnModuleDestroy {
       const reportWorker = ReportProcessor.createWorker(redisConfig);
       const notificationWorker = NotificationProcessor.createWorker(redisConfig);
       const exportWorker = ExportProcessor.createWorker(redisConfig);
+      const resultsWorker = ResultsEvaluateProcessor.createWorker(redisConfig, this.tenantDSService, this.queueService);
 
-      this.workers = [reportWorker, notificationWorker, exportWorker];
+      this.workers = [reportWorker, notificationWorker, exportWorker, resultsWorker];
 
       // Setup event listeners for workers
       this.setupWorkerListeners();
@@ -58,7 +61,7 @@ export class QueueInitializer implements OnModuleInit, OnModuleDestroy {
    */
   private setupWorkerListeners(): void {
     this.workers.forEach((worker, index) => {
-      const workerName = ['Reports', 'Notifications', 'Exports'][index];
+      const workerName = ['Reports', 'Notifications', 'Exports', 'ResultsEvaluate'][index];
 
       worker.on('completed', job => {
         this.logger.debug(`[${workerName}] Job ${job?.id ?? 'unknown'} completed`);

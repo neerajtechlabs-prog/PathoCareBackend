@@ -12,9 +12,11 @@ import { AuditModule } from './modules/audit/audit.module';
 import { QueueModule } from './modules/queue/queue.module';
 import { LabModule } from './modules/lab/lab.module';
 import { TestsModule } from './modules/tests/tests.module';
+import { ResultsModule } from './modules/results/results.module';
 import { DoctorsModule } from './modules/doctors/doctors.module';
 import { PatientsModule } from './modules/patients/patients.module';
 import { BookingsModule } from './modules/bookings/bookings.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -61,9 +63,11 @@ import { BookingsModule } from './modules/bookings/bookings.module';
     QueueModule,
     LabModule,
     TestsModule,
+    ResultsModule,
     DoctorsModule,
     PatientsModule,
     BookingsModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService],
