@@ -18,7 +18,7 @@ export class TenantModule implements NestModule {
       .apply(TenantMiddleware)
       .forRoutes(
         { path: 'tenants', method: RequestMethod.ALL },
-        { path: 'auth', method: RequestMethod.ALL },
+        { path: 'auth', method: RequestMethod.ALL }
       );
   }
 }

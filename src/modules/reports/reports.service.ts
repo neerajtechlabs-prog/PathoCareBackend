@@ -1,4 +1,5 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
 import { TenantDataSourceService } from '../../database/datasources/tenant.datasource';
 import { Report } from '../../database/entities/tenant/report.entity';
@@ -8,16 +9,18 @@ import { CreateReportDto } from './dto/create-report.dto';
 
 @Injectable()
 export class ReportsService {
-  private readonly logger = new Logger(ReportsService.name);
+  private readonly tenantDataSourceService: TenantDataSourceService;
 
   constructor(
-    private readonly tenantDSService: TenantDataSourceService,
+    private readonly configService: ConfigService,
     private readonly auditService: AuditService,
     private readonly queueService: QueueService,
-  ) {}
+  ) {
+    this.tenantDataSourceService = new TenantDataSourceService(this.configService);
+  }
 
   async requestReport(tenantSlug: string, dto: CreateReportDto, userId: string) {
-    const tenantDS = await this.tenantDSService.getForTenant(tenantSlug);
+    const tenantDS = await this.tenantDataSourceService.getForTenant(tenantSlug);
     const repo = tenantDS.getRepository(Report);
 
     const report = repo.create({
@@ -63,7 +66,7 @@ export class ReportsService {
   }
 
   async getReportStatus(tenantSlug: string, reportId: string) {
-    const tenantDS = await this.tenantDSService.getForTenant(tenantSlug);
+    const tenantDS = await this.tenantDataSourceService.getForTenant(tenantSlug);
     const report = await tenantDS.getRepository(Report).findOne({ where: { id: reportId } });
 
     if (!report) {
@@ -74,7 +77,7 @@ export class ReportsService {
   }
 
   async getPublicReportStatus(tenantSlug: string, publicToken: string) {
-    const tenantDS = await this.tenantDSService.getForTenant(tenantSlug);
+    const tenantDS = await this.tenantDataSourceService.getForTenant(tenantSlug);
     const report = await tenantDS.getRepository(Report).findOne({ where: { publicToken } });
 
     if (!report) {

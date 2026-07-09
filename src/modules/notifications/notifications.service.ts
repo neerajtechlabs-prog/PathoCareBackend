@@ -1,19 +1,25 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { DataSource, Repository } from 'typeorm';
 import { TenantDataSourceService } from '../../database/datasources/tenant.datasource';
-import { NotificationChannel, NotificationLog, NotificationStatus } from '../../database/entities/tenant/notification-log.entity';
+import {
+  NotificationChannel,
+  NotificationLog,
+  NotificationStatus,
+} from '../../database/entities/tenant/notification-log.entity';
 import { QueueService } from '../queue/services/queue.service';
 import { SendNotificationDto } from './dto/send-notification.dto';
 
 @Injectable()
 export class NotificationsService {
-  private readonly logger = new Logger(NotificationsService.name);
-
   constructor(
     private readonly tenantDataSourceService: TenantDataSourceService,
-    private readonly queueService: QueueService,
+    private readonly queueService: QueueService
   ) {}
 
-  async sendNotification(tenantSlug: string, dto: SendNotificationDto & { userId?: string }): Promise<NotificationLog> {
+  async sendNotification(
+    tenantSlug: string,
+    dto: SendNotificationDto & { userId?: string }
+  ): Promise<NotificationLog> {
     const tenantDS = await this.tenantDataSourceService.getForTenant(tenantSlug);
     const repo = tenantDS.getRepository(NotificationLog);
 
@@ -59,7 +65,10 @@ export class NotificationsService {
             tenantSlug,
             phoneNumber: dto.recipient,
             templateId: dto.template || 'default_whatsapp',
-            parameters: { message: dto.message || 'PathCare notification', referenceId: dto.referenceId || '' },
+            parameters: {
+              message: dto.message || 'PathCare notification',
+              referenceId: dto.referenceId || '',
+            },
             referenceId: dto.referenceId,
           });
           break;
@@ -81,7 +90,7 @@ export class NotificationsService {
     const repo = tenantDS.getRepository(NotificationLog);
 
     return this.runWithTableEnsure(tenantDS, async () =>
-      repo.find({ order: { createdAt: 'DESC' } }),
+      repo.find({ order: { createdAt: 'DESC' } })
     );
   }
 
@@ -89,7 +98,9 @@ export class NotificationsService {
     const tenantDS = await this.tenantDataSourceService.getForTenant(tenantSlug);
     const repo = tenantDS.getRepository(NotificationLog);
 
-    const log = await this.runWithTableEnsure(tenantDS, async () => repo.findOne({ where: { id } }));
+    const log = await this.runWithTableEnsure(tenantDS, async () =>
+      repo.findOne({ where: { id } })
+    );
     if (!log) {
       throw new NotFoundException(`Notification log ${id} not found`);
     }
@@ -97,12 +108,12 @@ export class NotificationsService {
   }
 
   async updateStatus(
-    tenantDS: any,
+    tenantDS: DataSource,
     id: string,
     status: NotificationStatus,
-    providerResponse?: Record<string, any>,
+    providerResponse?: Record<string, unknown>
   ): Promise<NotificationLog> {
-    const repo = tenantDS.getRepository(NotificationLog);
+    const repo: Repository<NotificationLog> = tenantDS.getRepository(NotificationLog);
     const existing = await repo.findOne({ where: { id } });
 
     if (!existing) {
@@ -115,7 +126,7 @@ export class NotificationsService {
     return repo.save(existing);
   }
 
-  private async runWithTableEnsure<T>(tenantDS: any, action: () => Promise<T>): Promise<T> {
+  private async runWithTableEnsure<T>(tenantDS: DataSource, action: () => Promise<T>): Promise<T> {
     try {
       return await action();
     } catch (error) {
@@ -128,7 +139,7 @@ export class NotificationsService {
     }
   }
 
-  private async ensureNotificationTable(tenantDS: any): Promise<void> {
+  private async ensureNotificationTable(tenantDS: DataSource): Promise<void> {
     await tenantDS.query('CREATE EXTENSION IF NOT EXISTS pgcrypto');
     await tenantDS.query(`
       CREATE TABLE IF NOT EXISTS notification_logs (

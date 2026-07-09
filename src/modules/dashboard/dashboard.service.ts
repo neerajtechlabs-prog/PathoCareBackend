@@ -1,12 +1,15 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { TenantDataSourceService } from '../../database/datasources/tenant.datasource';
 
 @Injectable()
 export class DashboardService {
-  constructor(private tenantDSService: TenantDataSourceService) {}
+  private readonly tenantDataSourceService: TenantDataSourceService = new TenantDataSourceService({
+    get: (key: string) => process.env[key],
+  } as unknown as ConfigService);
 
   async getWorkload(tenantSlug: string, _opts: { dateFrom?: string; dateTo?: string } = {}) {
-    const tenantDS = await this.tenantDSService.getForTenant(tenantSlug);
+    const tenantDS = await this.tenantDataSourceService.getForTenant(tenantSlug);
 
     // Pending bookings
     const pendingRes: any[] = await tenantDS.query(`SELECT COUNT(*)::int AS pending FROM bookings WHERE status = $1`, ['Pending']);

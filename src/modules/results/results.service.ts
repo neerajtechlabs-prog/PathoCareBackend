@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { TenantDataSourceService } from '../../database/datasources/tenant.datasource';
 import { AuditService } from '../audit/audit.service';
 import { ResultsRepository } from './repositories/results.repository';
@@ -9,16 +10,19 @@ import { NotFoundException } from '@nestjs/common';
 @Injectable()
 export class ResultsService {
   private readonly logger = new Logger(ResultsService.name);
+  private readonly tenantDataSourceService: TenantDataSourceService;
 
   constructor(
-    private readonly tenantDSService: TenantDataSourceService,
+    private readonly configService: ConfigService,
     private readonly auditService: AuditService,
     private readonly resultsRepository: ResultsRepository,
     private readonly queueService: QueueService,
-  ) {}
+  ) {
+    this.tenantDataSourceService = new TenantDataSourceService(this.configService);
+  }
 
   async create(tenantSlug: string, dto: CreateTestResultDto, userId: string) {
-    const tenantDS = await this.tenantDSService.getForTenant(tenantSlug);
+    const tenantDS = await this.tenantDataSourceService.getForTenant(tenantSlug);
 
     const testResult = await tenantDS.manager.transaction(async () => {
       const saved = await this.resultsRepository.createTestResult(tenantDS, {
@@ -51,7 +55,7 @@ export class ResultsService {
   }
 
   async verify(tenantSlug: string, resultId: string, userId: string) {
-    const tenantDS = await this.tenantDSService.getForTenant(tenantSlug);
+    const tenantDS = await this.tenantDataSourceService.getForTenant(tenantSlug);
     const repo = tenantDS.getRepository('test_results');
     const existing: any = await repo.findOne({ where: { id: resultId } });
     if (!existing) throw new NotFoundException(`Test result ${resultId} not found`);

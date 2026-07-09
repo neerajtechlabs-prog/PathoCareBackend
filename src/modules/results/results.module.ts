@@ -4,9 +4,10 @@ import { ResultsController } from './results.controller';
 import { ResultsRepository } from './repositories/results.repository';
 import { AuditModule } from '../audit/audit.module';
 import { QueueModule } from '../queue/queue.module';
+import { TenantModule } from '../tenant/tenant.module';
 
 @Module({
-  imports: [AuditModule, QueueModule],
+  imports: [TenantModule, AuditModule, QueueModule],
   providers: [ResultsService, ResultsRepository],
   controllers: [ResultsController],
   exports: [ResultsService],

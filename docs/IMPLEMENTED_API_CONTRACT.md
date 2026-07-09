@@ -1,6 +1,6 @@
 # Implemented API Contract (Quick Reference)
 
-This document lists the backend API endpoints implemented so far (as of Week 9), with example curl requests to help new developers get started quickly.
+This document lists the backend API endpoints implemented so far (as of Week 11), with example curl requests to help new developers get started quickly.
 
 Common notes
 - Base URL (local): `http://localhost:3001`
@@ -223,7 +223,70 @@ curl 'http://localhost:3001/api/dashboard/workload' \
 
 -------------------------------------------------
 
+10) Reports
+
+- POST /api/reports — Request a report generation job (LAB_TECHNICIAN, LAB_ADMIN, SUPER_ADMIN)
+- GET /api/reports/:id — Get report status by ID (auth required)
+- GET /api/reports/public/:token — Get public report status (no auth required)
+
+Create report example:
+```
+curl -X POST 'http://localhost:3001/api/reports' \
+  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
+  -H 'x-tenant-slug: demo' \
+  -H 'Content-Type: application/json' \
+  -d '{"bookingId":"<BOOKING_ID>","reportType":"RESULTS","patientEmail":"patient@example.com","patientPhone":"+911234567890"}'
+```
+
+Get report status example:
+```
+curl 'http://localhost:3001/api/reports/<REPORT_ID>' \
+  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
+  -H 'x-tenant-slug: demo'
+```
+
+Public report status example:
+```
+curl 'http://localhost:3001/api/reports/public/<PUBLIC_TOKEN>' \
+  -H 'x-tenant-slug: demo'
+```
+
+-------------------------------------------------
+
+11) Notifications
+
+- POST /api/notifications — Queue a notification for delivery (RECEPTIONIST, LAB_TECHNICIAN, LAB_ADMIN, SUPER_ADMIN)
+- GET /api/notifications — List notification logs for the current tenant (auth required)
+- GET /api/notifications/:id — Get one notification log (auth required)
+
+Send email example:
+```
+curl -X POST 'http://localhost:3001/api/notifications' \
+  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
+  -H 'x-tenant-slug: demo' \
+  -H 'Content-Type: application/json' \
+  -d '{"channel":"email","recipient":"patient@example.com","subject":"PathCare update","message":"Your report is ready","template":"report_ready","referenceId":"<BOOKING_ID>"}'
+```
+
+Send SMS example:
+```
+curl -X POST 'http://localhost:3001/api/notifications' \
+  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
+  -H 'x-tenant-slug: demo' \
+  -H 'Content-Type: application/json' \
+  -d '{"channel":"sms","recipient":"+911234567890","message":"Your report is ready","referenceId":"<BOOKING_ID>"}'
+```
+
+List notification logs example:
+```
+curl 'http://localhost:3001/api/notifications' \
+  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
+  -H 'x-tenant-slug: demo'
+```
+
+-------------------------------------------------
+
 Notes & next steps for docs
-- This file focuses on endpoints implemented through Week 9. Extend the same template for Weeks 10–12.
+- This file now covers endpoints implemented through Week 11.
 - Convert these examples to Postman/Insomnia collection if you want an importable set.
 - Consider adding response schema examples (OpenAPI/Swagger is available at `/api-docs`).

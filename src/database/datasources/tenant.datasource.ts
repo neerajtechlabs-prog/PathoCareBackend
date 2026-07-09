@@ -41,9 +41,7 @@ export class TenantDataSourceService {
       password: this.configService.get<string>('DB_PASS'),
       database: this.configService.get<string>('DB_NAME'),
       schema: schemaName,
-      entities: [
-        'dist/database/entities/tenant/**/*.entity.js',
-      ],
+      entities: ['dist/database/entities/tenant/**/*.entity.js'],
       migrations: ['dist/database/migrations/tenant/**/*.js'],
       migrationsTableName: 'typeorm_migrations_tenant',
       synchronize: false,
