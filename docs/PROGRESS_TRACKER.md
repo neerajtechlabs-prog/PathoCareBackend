@@ -59,7 +59,7 @@ This tracker reflects the current implementation status of the backend project a
 - ✅ Test catalog entities and migrations
 - ✅ CRUD endpoints for tests and parameters
 - ✅ Search and CSV import flow
-- ✅ Seed data for realistic test catalog
+- ✅ Seed data for realistic test catalog 
 
 ### Week 6 — Doctor Master + Patient Registration
 - ✅ Doctor module and CRUD
