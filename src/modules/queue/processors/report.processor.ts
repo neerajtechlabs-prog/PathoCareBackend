@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { Job, Worker } from 'bullmq';
 import { GeneratePdfReportJobData, QueueName } from '../queue.types';
 import { BaseProcessor } from './base.processor';
+import { Report } from '../../../database/entities/tenant/report.entity';
+import { TenantDataSourceService } from '../../../database/datasources/tenant.datasource';
 
 /**
  * PDF Report Generation Processor
@@ -9,7 +11,7 @@ import { BaseProcessor } from './base.processor';
  */
 @Injectable()
 export class ReportProcessor extends BaseProcessor {
-  constructor() {
+  constructor(private readonly tenantDSService: TenantDataSourceService) {
     super(ReportProcessor.name);
   }
 
@@ -24,12 +26,11 @@ export class ReportProcessor extends BaseProcessor {
    */
   async process(job: Job<GeneratePdfReportJobData>): Promise<any> {
     const startTime = Date.now();
-    const { tenantSlug, bookingId, patientEmail, patientPhone } = job.data;
+    const { tenantSlug, bookingId, patientEmail, patientPhone, reportId, publicToken } = job.data;
 
     try {
       this.logger.log(`[${tenantSlug}] Generating PDF report for booking ${bookingId}`);
 
-      // Simulate PDF generation work
       await this.simulateReportGeneration(bookingId);
 
       const result = {
@@ -45,9 +46,33 @@ export class ReportProcessor extends BaseProcessor {
         duration: Date.now() - startTime,
       };
 
+      if (reportId) {
+        const tenantDS = await this.tenantDSService.getForTenant(tenantSlug);
+        const reportRepo = tenantDS.getRepository(Report);
+        const report = await reportRepo.findOne({ where: { id: reportId } });
+        if (report) {
+          report.status = 'COMPLETED';
+          report.filePath = result.s3Path;
+          report.downloadUrl = `/reports/public/${publicToken}`;
+          report.generatedAt = new Date(result.generatedAt);
+          await reportRepo.save(report);
+        }
+      }
+
       this.logCompletion(job, result);
       return result;
     } catch (error) {
+      if (reportId) {
+        const tenantDS = await this.tenantDSService.getForTenant(tenantSlug);
+        const reportRepo = tenantDS.getRepository(Report);
+        const report = await reportRepo.findOne({ where: { id: reportId } });
+        if (report) {
+          report.status = 'FAILED';
+          report.errorMessage = error instanceof Error ? error.message : 'PDF generation failed';
+          await reportRepo.save(report);
+        }
+      }
+
       this.logFailure(job, error as Error);
       throw error;
     }
@@ -65,11 +90,11 @@ export class ReportProcessor extends BaseProcessor {
   /**
    * Create worker for this processor
    */
-  static createWorker(redisConfig: any): Worker<GeneratePdfReportJobData> {
+  static createWorker(redisConfig: any, tenantDSService: TenantDataSourceService): Worker<GeneratePdfReportJobData> {
     return new Worker<GeneratePdfReportJobData>(
       QueueName.REPORTS,
       async job => {
-        const processor = new ReportProcessor();
+        const processor = new ReportProcessor(tenantDSService);
         return processor.process(job);
       },
       {

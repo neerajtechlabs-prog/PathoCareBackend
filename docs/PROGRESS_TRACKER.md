@@ -88,8 +88,8 @@ This tracker reflects the current implementation status of the backend project a
 - ✅ Workload dashboard data flow
 
 ### Week 10 — PDF Report Engine
-- ⏳ PDF generation pipeline
-- ⏳ Report status and public verification endpoints
+- ✅ PDF generation pipeline (queue-backed, tenant-scoped report persistence)
+- ✅ Report status and public verification endpoints
 
 ### Week 11 — Notifications Delivery
 - ⏳ SMS / WhatsApp / email notification flow

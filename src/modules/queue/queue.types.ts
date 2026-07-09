@@ -31,6 +31,8 @@ export interface GeneratePdfReportJobData {
   reportTemplate: string;
   patientEmail?: string;
   patientPhone?: string;
+  reportId?: string;
+  publicToken?: string;
 }
 
 /**
