@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Job, Worker } from 'bullmq';
+import { TenantDataSourceService } from '../../../database/datasources/tenant.datasource';
+import { NotificationLog, NotificationStatus } from '../../../database/entities/tenant/notification-log.entity';
 import { SendSmsJobData, SendEmailJobData, SendWhatsappJobData, QueueName } from '../queue.types';
 import { BaseProcessor } from './base.processor';
 
@@ -9,7 +11,7 @@ import { BaseProcessor } from './base.processor';
  */
 @Injectable()
 export class NotificationProcessor extends BaseProcessor {
-  constructor() {
+  constructor(private readonly tenantDSService?: TenantDataSourceService) {
     super(NotificationProcessor.name);
   }
 
@@ -22,6 +24,10 @@ export class NotificationProcessor extends BaseProcessor {
     const jobName = job.name;
 
     try {
+      const tenantSlug = job.data?.tenantSlug;
+      if (tenantSlug && this.tenantDSService) {
+        await this.persistStatus(tenantSlug, job.data, NotificationStatus.PROCESSING);
+      }
       let result;
       switch (jobName) {
         case 'send-sms':
@@ -38,9 +44,17 @@ export class NotificationProcessor extends BaseProcessor {
       }
 
       result.duration = Date.now() - startTime;
+      if (tenantSlug && this.tenantDSService) {
+        await this.persistStatus(tenantSlug, job.data, NotificationStatus.SENT, result);
+      }
       this.logCompletion(job, result);
       return result;
     } catch (error) {
+      if (job.data?.tenantSlug && this.tenantDSService) {
+        await this.persistStatus(job.data.tenantSlug, job.data, NotificationStatus.FAILED, {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
       this.logFailure(job, error as Error);
       throw error;
     }
@@ -115,14 +129,38 @@ export class NotificationProcessor extends BaseProcessor {
     };
   }
 
+  private async persistStatus(tenantSlug: string, data: any, status: NotificationStatus, providerResponse?: any): Promise<void> {
+    if (!data?.referenceId) {
+      return;
+    }
+
+    try {
+      const tenantDS = await this.tenantDSService?.getForTenant(tenantSlug);
+      const repo = tenantDS?.getRepository(NotificationLog);
+      if (!repo) {
+        return;
+      }
+
+      const existing = await repo.findOne({ where: { referenceId: data.referenceId } });
+      if (existing) {
+        existing.status = status;
+        existing.providerResponse = providerResponse ?? existing.providerResponse;
+        existing.attempts = (existing.attempts || 0) + 1;
+        await repo.save(existing);
+      }
+    } catch (error) {
+      this.logger.warn(`Failed to persist notification status for ${data.referenceId}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
   /**
    * Create worker for this processor
    */
-  static createWorker(redisConfig: any): Worker {
+  static createWorker(redisConfig: any, tenantDSService?: TenantDataSourceService): Worker {
     return new Worker(
       QueueName.NOTIFICATIONS,
       async job => {
-        const processor = new NotificationProcessor();
+        const processor = new NotificationProcessor(tenantDSService);
         return processor.process(job);
       },
       {

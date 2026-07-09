@@ -92,8 +92,8 @@ This tracker reflects the current implementation status of the backend project a
 - ✅ Report status and public verification endpoints
 
 ### Week 11 — Notifications Delivery
-- ⏳ SMS / WhatsApp / email notification flow
-- ⏳ Notification log persistence
+- ✅ Queue-backed SMS / WhatsApp / email notification flow
+- ✅ Notification log persistence with tenant-scoped status tracking
 
 ### Week 12 — MIS + Day Collection
 - ⏳ MIS reporting endpoints

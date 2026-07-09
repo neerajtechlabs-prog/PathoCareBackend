@@ -28,7 +28,7 @@ export class QueueInitializer implements OnModuleInit, OnModuleDestroy {
 
       // Create workers for each processor
       const reportWorker = ReportProcessor.createWorker(redisConfig, this.tenantDSService);
-      const notificationWorker = NotificationProcessor.createWorker(redisConfig);
+      const notificationWorker = NotificationProcessor.createWorker(redisConfig, this.tenantDSService);
       const exportWorker = ExportProcessor.createWorker(redisConfig);
       const resultsWorker = ResultsEvaluateProcessor.createWorker(redisConfig, this.tenantDSService, this.queueService);
 

@@ -1,0 +1,1 @@
+cd /d d:\WorkingZone\PathCareParent\Backend\PathoCareBackend && npm test -- --runTestsByPath modules/notifications/notifications.service.spec.ts --runInBand

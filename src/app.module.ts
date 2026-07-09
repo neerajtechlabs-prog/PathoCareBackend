@@ -18,6 +18,7 @@ import { PatientsModule } from './modules/patients/patients.module';
 import { BookingsModule } from './modules/bookings/bookings.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -25,9 +26,7 @@ import { ReportsModule } from './modules/reports/reports.module';
       isGlobal: true,
       envFilePath: '.env',
       validationSchema: Joi.object({
-        NODE_ENV: Joi.string()
-          .valid('development', 'production', 'test')
-          .default('development'),
+        NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
         API_PORT: Joi.number().default(3001),
         DB_HOST: Joi.string().required(),
         DB_PORT: Joi.number().required(),
@@ -70,6 +69,7 @@ import { ReportsModule } from './modules/reports/reports.module';
     BookingsModule,
     DashboardModule,
     ReportsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
