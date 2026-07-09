@@ -14,6 +14,7 @@ import { LabModule } from './modules/lab/lab.module';
 import { TestsModule } from './modules/tests/tests.module';
 import { DoctorsModule } from './modules/doctors/doctors.module';
 import { PatientsModule } from './modules/patients/patients.module';
+import { BookingsModule } from './modules/bookings/bookings.module';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { PatientsModule } from './modules/patients/patients.module';
     TestsModule,
     DoctorsModule,
     PatientsModule,
+    BookingsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

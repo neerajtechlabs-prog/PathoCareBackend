@@ -123,4 +123,38 @@ export async function ensureLabCrudTables(queryRunner: QueryRunnerLike, schemaNa
       "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `);
+
+  await queryRunner.query(`
+    CREATE TABLE IF NOT EXISTS ${schema}.bookings (
+      id UUID PRIMARY KEY,
+      "bookingNumber" VARCHAR(100) NOT NULL UNIQUE,
+      "patientId" UUID NOT NULL,
+      "doctorId" UUID,
+      status VARCHAR(50) DEFAULT 'Pending',
+      notes TEXT,
+      email VARCHAR(255),
+      phone VARCHAR(20),
+      "paymentMode" VARCHAR(50),
+      amount NUMERIC(10,2) DEFAULT 0,
+      "paymentVerified" BOOLEAN DEFAULT false,
+      "preferredDate" DATE,
+      "createdBy" UUID,
+      "updatedBy" UUID,
+      "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  await queryRunner.query(`
+    CREATE TABLE IF NOT EXISTS ${schema}.booking_tests (
+      id UUID PRIMARY KEY,
+      "bookingId" UUID NOT NULL,
+      "testId" UUID NOT NULL,
+      "testCode" VARCHAR(100),
+      amount NUMERIC(10,2) DEFAULT 0,
+      "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT fk_booking_tests_booking FOREIGN KEY ("bookingId") REFERENCES ${schema}.bookings(id) ON DELETE CASCADE
+    );
+  `);
 }

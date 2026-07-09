@@ -68,10 +68,10 @@ This tracker reflects the current implementation status of the backend project a
 - ✅ Seed data for doctors and patients
 
 ### Week 7 — Booking Screen Part 1
-- ⏳ Booking and booking_tests schema
-- ⏳ Atomic booking creation flow
-- ⏳ Barcode and QR generation
-- ⏳ Payment validation and booking number generation
+- ✅ Booking and booking_tests schema
+- ✅ Atomic booking creation flow
+- ✅ Barcode and QR generation
+- ✅ Payment validation and booking number generation
 
 ### Week 8 — Booking Screen Part 2 + Balance Receipt
 - ⏳ Booking list filters and pagination
