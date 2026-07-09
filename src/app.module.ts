@@ -12,6 +12,8 @@ import { AuditModule } from './modules/audit/audit.module';
 import { QueueModule } from './modules/queue/queue.module';
 import { LabModule } from './modules/lab/lab.module';
 import { TestsModule } from './modules/tests/tests.module';
+import { DoctorsModule } from './modules/doctors/doctors.module';
+import { PatientsModule } from './modules/patients/patients.module';
 
 @Module({
   imports: [
@@ -58,6 +60,8 @@ import { TestsModule } from './modules/tests/tests.module';
     QueueModule,
     LabModule,
     TestsModule,
+    DoctorsModule,
+    PatientsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

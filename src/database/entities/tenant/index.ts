@@ -5,3 +5,5 @@ export { User } from './user.entity';
 export { RefreshToken } from './refresh-token.entity';
 export { TestCatalog } from './test-catalog.entity';
 export { TestParameter } from './test-parameter.entity';
+export { Doctor } from './doctor.entity';
+export { Patient } from './patient.entity';

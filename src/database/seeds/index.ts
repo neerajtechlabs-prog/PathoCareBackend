@@ -252,6 +252,65 @@ async function ensureTenantSeedData(queryRunner: any, tenant: TenantSeedConfig):
     [tenant.slug, `seeded for ${tenant.slug}`],
   );
 
+  const doctorSeeds = [
+    {
+      name: 'Dr. Asha Verma',
+      specialization: 'Pathology',
+      phone: '9876543210',
+      email: 'asha.verma@pathcare.local',
+      licenseNumber: 'DOC-001',
+    },
+    {
+      name: 'Dr. Rohan Shah',
+      specialization: 'Biochemistry',
+      phone: '9876543211',
+      email: 'rohan.shah@pathcare.local',
+      licenseNumber: 'DOC-002',
+    },
+  ];
+
+  for (const doctor of doctorSeeds) {
+    await queryRunner.query(
+      `
+      INSERT INTO ${schemaName}.doctors (id, name, specialization, phone, email, "licenseNumber", "isActive", "createdBy", "updatedBy")
+      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, true, NULL, NULL)
+      ON CONFLICT (id) DO NOTHING
+      `,
+      [doctor.name, doctor.specialization, doctor.phone, doctor.email, doctor.licenseNumber],
+    );
+  }
+
+  const patientSeeds = [
+    {
+      name: 'Priya Mehta',
+      phone: '9123456780',
+      email: 'priya.mehta@example.com',
+      gender: 'Female',
+      dateOfBirth: '1990-04-12',
+      address: 'Sector 15, Gurgaon',
+    },
+    {
+      name: 'Amit Kumar',
+      phone: '9123456781',
+      email: 'amit.kumar@example.com',
+      gender: 'Male',
+      dateOfBirth: '1985-08-20',
+      address: 'Noida, Uttar Pradesh',
+    },
+  ];
+
+  for (const patient of patientSeeds) {
+    const uid = `PT-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    await queryRunner.query(
+      `
+      INSERT INTO ${schemaName}.patients (id, uid, name, phone, email, gender, "dateOfBirth", address, "isActive", "createdBy", "updatedBy")
+      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, true, NULL, NULL)
+      ON CONFLICT (uid) DO NOTHING
+      `,
+      [uid, patient.name, patient.phone, patient.email, patient.gender, patient.dateOfBirth, patient.address],
+    );
+  }
+
   // Seed users per role (Phase 2 auth setup)
   const userSeeds = getUserSeedsForTenant(tenant.slug);
   for (const user of userSeeds) {

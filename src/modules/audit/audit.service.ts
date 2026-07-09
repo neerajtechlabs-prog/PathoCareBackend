@@ -42,6 +42,12 @@ export class AuditService {
     'users.delete.failed',
     'users.deleted',
     'users.list.accessed',
+    'doctors.created',
+    'doctors.updated',
+    'doctors.deleted',
+    'patients.created',
+    'patients.updated',
+    'patients.deleted',
   ]);
 
   constructor(private readonly tenantDataSourceService: TenantDataSourceService) {}

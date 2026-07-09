@@ -89,4 +89,38 @@ export async function ensureLabCrudTables(queryRunner: QueryRunnerLike, schemaNa
       CONSTRAINT fk_test_parameters_test FOREIGN KEY ("testId") REFERENCES ${schema}.tests(id)
     );
   `);
+
+  await queryRunner.query(`
+    CREATE TABLE IF NOT EXISTS ${schema}.doctors (
+      id UUID PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      specialization VARCHAR(255),
+      phone VARCHAR(20),
+      email VARCHAR(255),
+      "licenseNumber" VARCHAR(100),
+      "isActive" BOOLEAN DEFAULT true,
+      "createdBy" UUID,
+      "updatedBy" UUID,
+      "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  await queryRunner.query(`
+    CREATE TABLE IF NOT EXISTS ${schema}.patients (
+      id UUID PRIMARY KEY,
+      uid VARCHAR(100) NOT NULL UNIQUE,
+      name VARCHAR(255) NOT NULL,
+      phone VARCHAR(20),
+      email VARCHAR(255),
+      gender VARCHAR(20),
+      "dateOfBirth" DATE,
+      address TEXT,
+      "isActive" BOOLEAN DEFAULT true,
+      "createdBy" UUID,
+      "updatedBy" UUID,
+      "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
 }

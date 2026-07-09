@@ -62,10 +62,10 @@ This tracker reflects the current implementation status of the backend project a
 - ✅ Seed data for realistic test catalog
 
 ### Week 6 — Doctor Master + Patient Registration
-- ⏳ Doctor module and CRUD
-- ⏳ Patient module and UID generation
-- ⏳ Patient search and history endpoints
-- ⏳ Seed data for doctors and patients
+- ✅ Doctor module and CRUD
+- ✅ Patient module and UID generation
+- ✅ Patient search and history endpoints
+- ✅ Seed data for doctors and patients
 
 ### Week 7 — Booking Screen Part 1
 - ⏳ Booking and booking_tests schema
