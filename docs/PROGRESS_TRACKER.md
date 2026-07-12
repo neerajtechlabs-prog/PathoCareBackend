@@ -96,8 +96,9 @@ This tracker reflects the current implementation status of the backend project a
 - ✅ Notification log persistence with tenant-scoped status tracking
 
 ### Week 12 — MIS + Day Collection
-- ⏳ MIS reporting endpoints
-- ⏳ Excel export flow
+- ✅ MIS reporting endpoints implemented for day collection summary, day register, and export queue integration
+- ✅ Excel export flow implemented with ExcelJS workbook generation wired to the MIS export job
+- ✅ Seed-data validation added for MIS totals against real tenant booking, receipt, and test rows
 
 ---
 

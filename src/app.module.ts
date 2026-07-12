@@ -19,6 +19,7 @@ import { BookingsModule } from './modules/bookings/bookings.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { MisModule } from './modules/mis/mis.module';
 
 @Module({
   imports: [
@@ -70,6 +71,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     DashboardModule,
     ReportsModule,
     NotificationsModule,
+    MisModule,
   ],
   controllers: [AppController],
   providers: [AppService],
