@@ -81,7 +81,7 @@ export class NotificationsService {
       await this.updateStatus(tenantDS, log.id, NotificationStatus.FAILED, {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw error;
+      return log;
     }
   }
 

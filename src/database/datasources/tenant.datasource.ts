@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
+import { tenantEntities } from '../entities/tenant';
 
 @Injectable()
 export class TenantDataSourceService {
@@ -41,7 +42,7 @@ export class TenantDataSourceService {
       password: this.configService.get<string>('DB_PASS'),
       database: this.configService.get<string>('DB_NAME'),
       schema: schemaName,
-      entities: ['dist/database/entities/tenant/**/*.entity.js'],
+      entities: tenantEntities,
       migrations: ['dist/database/migrations/tenant/**/*.js'],
       migrationsTableName: 'typeorm_migrations_tenant',
       synchronize: false,
@@ -53,6 +54,9 @@ export class TenantDataSourceService {
     if (!ds.isInitialized) {
       await ds.initialize();
     }
+
+    const escapedSchemaName = schemaName.replace(/"/g, '""');
+    await ds.query(`SET search_path TO "${escapedSchemaName}", public`);
 
     this.logger.debug(`✅ Tenant DataSource initialized for schema: ${schemaName}`);
     return ds;

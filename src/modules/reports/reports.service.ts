@@ -50,7 +50,6 @@ export class ReportsService {
       saved.status = 'FAILED';
       saved.errorMessage = error instanceof Error ? error.message : 'Failed to enqueue PDF generation';
       await repo.save(saved);
-      throw error;
     }
 
     await this.auditService.logEvent({

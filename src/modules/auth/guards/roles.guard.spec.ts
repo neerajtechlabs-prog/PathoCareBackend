@@ -2,6 +2,7 @@ import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { RolesGuard } from './roles.guard';
 import { UserRole } from '../../../database/entities/tenant/user.entity';
+import { AuditService } from '../../audit/audit.service';
 
 describe('RolesGuard', () => {
   let reflector: Reflector;
@@ -9,7 +10,8 @@ describe('RolesGuard', () => {
 
   beforeEach(() => {
     reflector = new Reflector();
-    guard = new RolesGuard(reflector);
+    const auditService = { logEvent: jest.fn().mockResolvedValue(undefined) } as unknown as AuditService;
+    guard = new RolesGuard(reflector, auditService);
   });
 
   it('allows access when the user has one of the required roles', () => {

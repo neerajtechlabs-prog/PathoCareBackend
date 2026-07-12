@@ -5,24 +5,49 @@ import { NotificationLog } from '../../database/entities/tenant/notification-log
 describe('NotificationsService', () => {
   it('persists a notification log for a pending delivery and returns it', async () => {
     const savedLog = { id: 'log-1', status: 'pending' } as NotificationLog;
-    const repo = {
-      create: jest.fn().mockReturnValue(savedLog),
-      save: jest.fn().mockResolvedValue(savedLog),
-      find: jest.fn().mockResolvedValue([savedLog]),
-      findOne: jest.fn().mockResolvedValue(savedLog),
+
+    const createMock: any = jest.fn();
+    createMock.mockReturnValue(savedLog);
+
+    const saveMock: any = jest.fn();
+    saveMock.mockResolvedValue(savedLog);
+
+    const findMock: any = jest.fn();
+    findMock.mockResolvedValue([savedLog]);
+
+    const findOneMock: any = jest.fn();
+    findOneMock.mockResolvedValue(savedLog);
+
+    const repo: any = {
+      create: createMock,
+      save: saveMock,
+      find: findMock,
+      findOne: findOneMock,
     };
 
-    const tenantDS = {
-      getRepository: jest.fn().mockReturnValue(repo),
-      query: jest.fn().mockResolvedValue([]),
+    const getRepositoryMock: any = jest.fn();
+    getRepositoryMock.mockReturnValue(repo);
+
+    const queryMock: any = jest.fn();
+    queryMock.mockResolvedValue([]);
+
+    const tenantDS: any = {
+      getRepository: getRepositoryMock,
+      query: queryMock,
     };
 
-    const tenantDSService = {
-      getForTenant: jest.fn().mockResolvedValue(tenantDS),
+    const getForTenantMock: any = jest.fn();
+    getForTenantMock.mockResolvedValue(tenantDS);
+
+    const tenantDSService: any = {
+      getForTenant: getForTenantMock,
     };
 
-    const queueService = {
-      enqueueEmail: jest.fn().mockResolvedValue('job-123'),
+    const enqueueEmailMock: any = jest.fn();
+    enqueueEmailMock.mockResolvedValue('job-123');
+
+    const queueService: any = {
+      enqueueEmail: enqueueEmailMock,
     };
 
     const service = new NotificationsService(tenantDSService as any, queueService as any);

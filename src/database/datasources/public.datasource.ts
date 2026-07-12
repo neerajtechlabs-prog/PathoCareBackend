@@ -19,9 +19,7 @@ export class PublicDataSourceService implements OnModuleInit {
         password: this.configService.get<string>('DB_PASS'),
         database: this.configService.get<string>('DB_NAME'),
         schema: 'public',
-        entities: [
-          'dist/database/entities/public/**/*.entity.js',
-        ],
+        entities: ['dist/database/entities/public/**/*.entity.js'],
         migrations: ['dist/database/migrations/public/**/*.js'],
         migrationsTableName: 'typeorm_migrations_public',
         synchronize: false,

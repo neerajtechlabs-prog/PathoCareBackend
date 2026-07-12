@@ -1,14 +1,49 @@
 # Implemented API Contract (Quick Reference)
 
-This document lists the backend API endpoints implemented so far (as of Week 11), with example curl requests to help new developers get started quickly.
+This document is meant as a frontend handoff guide for the backend project. It summarizes the endpoints exposed in Swagger at http://localhost:3001/api-docs and highlights the request/response shape that a frontend developer will actually use.
 
-Common notes
+## Common notes for frontend integration
 - Base URL (local): `http://localhost:3001`
-- All tenant-scoped endpoints require header: `x-tenant-slug: <tenant-slug>` (e.g. `demo`).
-- Auth: many endpoints require a Bearer access token. Obtain tokens using `/api/auth/login`.
-- Content type: use `Content-Type: application/json` for JSON bodies.
+- Every tenant-scoped request should include the header: `x-tenant-slug: demo` (or another tenant slug)
+- Most protected endpoints need a Bearer access token from `/api/auth/login`
+- Use `Content-Type: application/json` for POST/PUT/PATCH requests
+- For local testing, the seeded admin user is usually: `admin@demo.pathcare.local` with password `Password123!`
 
-Replace placeholders (`<...>`) in examples before running.
+Replace placeholders like `<ACCESS_TOKEN>` or `<BOOKING_ID>` before running the examples.
+
+## Recommended first-flow for frontend
+1. Login with `/api/auth/login`
+2. Save the `accessToken`
+3. Call `/api/tests`, `/api/patients`, `/api/doctors` to load master data
+4. Create a booking via `/api/bookings`
+5. Create a receipt via `/api/bookings/:id/receipts`
+6. Create a report through `/api/reports`
+7. Send a notification via `/api/notifications`
+
+## Auth payloads and responses
+### Login request body
+```json
+{
+  "email": "admin@demo.pathcare.local",
+  "password": "Password123!"
+}
+```
+
+### Login response
+```json
+{
+  "accessToken": "<JWT>",
+  "refreshToken": "<JWT>",
+  "tokenType": "Bearer",
+  "expiresIn": 900
+}
+```
+
+### Auth headers
+```http
+Authorization: Bearer <ACCESS_TOKEN>
+x-tenant-slug: demo
+```
 
 -------------------------------------------------
 
@@ -70,6 +105,8 @@ curl 'http://localhost:3001/health/redis'
 
 3) Tests (Test catalog + parameters)
 
+Frontend use case: load available lab tests and their parameter definitions.
+
 - GET /api/tests?q=<query> — List tests (auth required)
 - GET /api/tests/:id — Get a test
 - POST /api/tests — Create test (LAB_ADMIN / SUPER_ADMIN)
@@ -80,6 +117,18 @@ curl 'http://localhost:3001/health/redis'
 - POST /api/tests/:id/parameters — Create parameter (LAB_ADMIN / SUPER_ADMIN)
 - PUT /api/tests/parameters/:parameterId — Update parameter (LAB_ADMIN / SUPER_ADMIN)
 - DELETE /api/tests/parameters/:parameterId — Delete parameter (SUPER_ADMIN)
+
+Typical response shape:
+```json
+{
+  "id": "<test-id>",
+  "name": "Hemogram",
+  "code": "HEM01",
+  "department": "Hematology",
+  "specimenType": "Blood",
+  "unit": "panel"
+}
+```
 
 Create test example:
 ```
@@ -103,12 +152,25 @@ curl -X POST 'http://localhost:3001/api/tests/<TEST_ID>/parameters' \
 
 4) Bookings
 
+Frontend use case: booking flow from patient selection to payment and receipt.
+
 - GET /api/bookings — List bookings (filters: q, status, fromDate, toDate, page, perPage)
 - GET /api/bookings/:id — Get booking
 - POST /api/bookings — Create booking (RECEPTIONIST, LAB_ADMIN, SUPER_ADMIN)
 - PUT /api/bookings/:id/cancel — Cancel booking (LAB_ADMIN, SUPER_ADMIN)
 - POST /api/bookings/:id/receipts — Create receipt (RECEPTIONIST, LAB_ADMIN, SUPER_ADMIN)
 - POST /api/bookings/:id/payment/validate — Validate payment (RECEPTIONIST, LAB_ADMIN, SUPER_ADMIN)
+
+Typical booking request body:
+```json
+{
+  "patientId": "<patient-id>",
+  "amount": 1000,
+  "paymentMode": "CASH",
+  "preferredDate": "2026-07-12",
+  "testIds": ["<test-id>"]
+}
+```
 
 Create booking example:
 ```
@@ -132,12 +194,24 @@ curl -X POST 'http://localhost:3001/api/bookings/<BOOKING_ID>/receipts' \
 
 5) Patients
 
+Frontend use case: patient lookup, registration, and history for booking forms.
+
 - GET /api/patients?q=<query> — List patients
 - GET /api/patients/:id — Get patient
 - GET /api/patients/:id/history — Get patient history
 - POST /api/patients — Create patient (RECEPTIONIST, LAB_ADMIN, SUPER_ADMIN)
 - PUT /api/patients/:id — Update patient (RECEPTIONIST, LAB_ADMIN, SUPER_ADMIN)
 - DELETE /api/patients/:id — Delete (SUPER_ADMIN)
+
+Typical patient request body:
+```json
+{
+  "name": "Jane Doe",
+  "email": "jane@example.com",
+  "phone": "+911234567890",
+  "dateOfBirth": "1990-01-01"
+}
+```
 
 Create patient example:
 ```
@@ -152,11 +226,22 @@ curl -X POST 'http://localhost:3001/api/patients' \
 
 6) Doctors
 
+Frontend use case: doctor selection and doctor master data in booking and result workflows.
+
 - GET /api/doctors — List doctors
 - GET /api/doctors/:id — Get doctor
 - POST /api/doctors — Create doctor (LAB_ADMIN, SUPER_ADMIN)
 - PUT /api/doctors/:id — Update doctor (LAB_ADMIN, SUPER_ADMIN)
 - DELETE /api/doctors/:id — Delete (SUPER_ADMIN)
+
+Typical doctor request body:
+```json
+{
+  "name": "Dr. Kumar",
+  "email": "kumar@example.com",
+  "phone": "+911098765432"
+}
+```
 
 Create doctor example:
 ```
@@ -188,9 +273,22 @@ curl -X POST 'http://localhost:3001/api/labs' \
 
 8) Results
 
+Frontend use case: result entry workflow after booking is complete.
+
 - POST /api/results — Create test result (LAB_TECHNICIAN, LAB_ADMIN)
   - Body: `{ bookingId, testId, parameters: [{ parameterId, value }, ...] }`
 - PUT /api/results/:id/verify — Verify a result (LAB_ADMIN)
+
+Typical result request body:
+```json
+{
+  "bookingId": "<booking-id>",
+  "testId": "<test-id>",
+  "parameters": [
+    { "parameterId": "<parameter-id>", "value": "12.5" }
+  ]
+}
+```
 
 Create result example:
 ```
@@ -225,9 +323,21 @@ curl 'http://localhost:3001/api/dashboard/workload' \
 
 10) Reports
 
+Frontend use case: trigger report generation once results are ready.
+
 - POST /api/reports — Request a report generation job (LAB_TECHNICIAN, LAB_ADMIN, SUPER_ADMIN)
 - GET /api/reports/:id — Get report status by ID (auth required)
 - GET /api/reports/public/:token — Get public report status (no auth required)
+
+Typical report request body:
+```json
+{
+  "bookingId": "<booking-id>",
+  "reportType": "RESULTS",
+  "patientEmail": "patient@example.com",
+  "patientPhone": "+911234567890"
+}
+```
 
 Create report example:
 ```
@@ -286,7 +396,45 @@ curl 'http://localhost:3001/api/notifications' \
 
 -------------------------------------------------
 
+12) Tenant + Admin Utilities
+
+- GET /tenants/:slug — Get tenant metadata
+- GET /tenants/:slug/isolation-proof — Verify tenant data isolation
+- GET /audit — List recent tenant audit logs (SUPER_ADMIN / LAB_ADMIN)
+- GET /users — List users (SUPER_ADMIN / LAB_ADMIN)
+- PATCH /users/:id/role — Update a user's role (SUPER_ADMIN / LAB_ADMIN)
+- PATCH /users/:id — Update user profile flags (SUPER_ADMIN / LAB_ADMIN)
+- DELETE /users/:id — Delete a user (SUPER_ADMIN / LAB_ADMIN)
+- GET /api/mis/day-collection — MIS day collection summary
+- GET /api/mis/day-register — MIS day register view
+- POST /api/mis/day-collection/export — Export MIS day collection data
+
+Example:
+```
+curl 'http://localhost:3001/tenants/demo' \
+  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
+  -H 'x-tenant-slug: demo'
+```
+
+-------------------------------------------------
+
+13) MIS / Reporting Utilities
+
+- GET /api/mis/day-collection
+- GET /api/mis/day-register
+- POST /api/mis/day-collection/export
+
+Example:
+```
+curl 'http://localhost:3001/api/mis/day-collection' \
+  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
+  -H 'x-tenant-slug: demo'
+```
+
+-------------------------------------------------
+
 Notes & next steps for docs
-- This file now covers endpoints implemented through Week 11.
-- Convert these examples to Postman/Insomnia collection if you want an importable set.
-- Consider adding response schema examples (OpenAPI/Swagger is available at `/api-docs`).
+- This file now covers the routes exposed by the current backend implementation and Swagger setup.
+- Keep this document aligned with the live Swagger UI at http://localhost:3001/api-docs as new routes are added.
+- For frontend work, start with the auth → tests/patients/doctors → booking → receipt → report → notification flow.
+- Convert these examples to a Postman/Insomnia collection if you want an importable set.

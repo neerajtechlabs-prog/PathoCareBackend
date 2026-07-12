@@ -22,6 +22,9 @@ export class ResultsEvaluateProcessor extends BaseProcessor {
       const paramResultRepo = tenantDS.getRepository(TestParameterResult);
       const paramResults = await paramResultRepo.find({ where: { testResultId: resultId }, relations: ['parameter'] });
 
+      const testResultRepo = tenantDS.getRepository('test_results');
+      const testResultRow: any = await testResultRepo.findOne({ where: { id: resultId } });
+
       let anyCritical = false;
       for (const pr of paramResults) {
         const param = (pr.parameter as TestParameter) || (await tenantDS.getRepository(TestParameter).findOne({ where: { id: pr.parameterId } }));
@@ -51,9 +54,6 @@ export class ResultsEvaluateProcessor extends BaseProcessor {
         // Resolve recipients from booking and lab config
         try {
           const bookingRepo = tenantDS.getRepository(Booking);
-          // Load test_result row to find bookingId
-          const testResultRepo = tenantDS.getRepository('test_results');
-          const testResultRow: any = await testResultRepo.findOne({ where: { id: resultId } });
           let bookingRecord: any = null;
           if (testResultRow?.bookingId) {
             bookingRecord = await bookingRepo.findOne({ where: { id: testResultRow.bookingId } });

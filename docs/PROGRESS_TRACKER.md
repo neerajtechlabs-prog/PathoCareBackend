@@ -102,12 +102,20 @@ This tracker reflects the current implementation status of the backend project a
 
 ---
 
+## Must-Have Missing for MVP Launch
+These are the highest-priority gaps still worth closing before the first launch, without expanding scope beyond the MVP:
+- ⏳ Add the last layer of production hardening: real rate limiting, stricter secret/env validation, and safer error handling for production responses
+- ⏳ Add real end-to-end smoke tests for the core flow: booking → receipt → report/notification and tenant-isolation verification with seeded data
+
 ## Month 4 — Polish, Security, Launch
 
 ### Week 13 — Integration Testing + Bug Sprint
-- ⏳ End-to-end flow validation
-- ⏳ Query performance review
-- ⏳ API contract CI enforcement
+- ✅ End-to-end flow validation scaffolding added for booking → receipt → report/notification and tenant-isolation scenarios
+- 🔄 Local DB-backed smoke execution and final seed/runtime compatibility validation still pending
+- ✅ Query performance review started with targeted repository and processor improvements already implemented
+- 🔄 Runtime profiling and follow-up optimization pass still pending
+- ✅ API contract test suite added and wired into the backend test workflow
+- 🔄 Final CI/local verification run for the contract and smoke suites still pending
 
 ### Week 14 — Security Hardening
 - ⏳ Helmet + rate limiting + input sanitization
@@ -124,19 +132,3 @@ This tracker reflects the current implementation status of the backend project a
 
 ---
 
-## Current Focus Recommendation
-
-### Next Highest-Value Tasks
-1. Add RBAC guards and role-based access enforcement
-2. Implement audit logging for auth and tenant-sensitive actions
-3. Verify JWT login/refresh flow end-to-end with seeded tenant users
-4. Add rate limiting and brute-force protection
-5. Add BullMQ queue wiring and Socket.IO gateway for health events
-6. Create the first real domain modules: tests, patients, doctors
-
-### Suggested Daily Execution Rule
-- Pick one task from the tracker
-- Implement it fully
-- Verify it locally
-- Move it to completed
-- Then pick the next task
