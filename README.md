@@ -1,69 +1,143 @@
 # PathCare Labs Backend API
 
-> **Senior Architect Edition — Solo Dev, 15-20 hrs/week, 20-Week Realistic Timeline**
+This repository is the NestJS backend for the PathCare lab management platform. It is meant to be easy for a new teammate to clone, run locally, and understand the basics of the architecture.
 
-Backend API for PathCare diagnostic lab management system. Built with NestJS, TypeORM (schema-per-tenant), PostgreSQL, Redis, and AWS services.
+## 🚀 New Joinee Setup Guide
 
-## 🚀 Quick Start
+Use this section in order. It is the shortest path from a fresh machine to a running local backend.
 
-### Prerequisites
-- Node.js 20+
-- Docker & Docker Compose
+### 1. Prerequisites
+Make sure the following are installed and working:
+- Node.js 20.x (the repo includes an .nvmrc file)
+- Docker Desktop and Docker Compose
 - Git
+- A terminal such as PowerShell, Git Bash, or VS Code terminal
 
-### Local Development
-
-1. **Clone and install:**
+If you use nvm, run:
 ```bash
-git clone <your-repo>
-cd pathcare-api
+nvm use
+```
+
+### 2. Open the backend folder
+From the workspace root:
+```bash
+cd Backend/PathoCareBackend
+```
+
+### 3. Install dependencies
+```bash
 npm install
 ```
 
-2. **Setup environment:**
+If this is the first time on the machine, it may take a few minutes. Wait for it to finish successfully before moving on.
+
+### 4. Create your local environment file
 ```bash
 cp .env.example .env
-# Edit .env with your local values (docker-compose defaults work as-is for local dev)
 ```
 
-3. **Start services (working flow on Windows / VS Code):**
-```bash
-# 1) Start Docker Desktop app first
-# 2) Open terminal in the backend project folder
-cd Backend/PathoCareBackend
+Then review the file and keep the defaults unless you know you need to change them. The local Docker setup already uses the database host names and ports from the example file.
 
-# 3) Start the containers
+### 5. Start the local infrastructure
+Make sure Docker Desktop is already running, then start the containers:
+```bash
 docker compose up -d
 ```
 
-Expected success output includes:
-```text
-[+] up 7/7
-✔ Container pathcare-postgres Healthy
-✔ Container pathcare-redis Healthy
-✔ Container pathcare-api Started
-```
-
-If you want to stop everything later:
+Check that the services are healthy:
 ```bash
-docker compose down
+docker compose ps
 ```
 
-To follow logs:
-```bash
-docker compose logs -f api
-```
+You want to see PostgreSQL and Redis as running/healthy before continuing.
 
-4. **Run migrations and seed:**
+### 6. Seed demo data
+In a new terminal (or after the containers are up), run:
 ```bash
 npm run seed
 ```
 
-5. **Start development server:**
+This creates the demo tenant and sample data needed for local development.
+
+### 7. Start the backend server
 ```bash
 npm run start:dev
-# API runs on http://localhost:3001
-# Swagger docs: http://localhost:3001/api-docs
+```
+
+The API should start on:
+- Health check: http://localhost:3001/health
+- Swagger UI: http://localhost:3001/api-docs
+- OpenAPI JSON: http://localhost:3001/api-docs-json
+
+### 8. Verify that everything is working
+Open the following in your browser or terminal:
+```bash
+curl http://localhost:3001/health
+```
+
+Expected response:
+```json
+{"data":{"status":"OK"}}
+```
+
+You can also open Swagger at http://localhost:3001/api-docs and confirm the docs load.
+
+## ✅ First Checks for a New Developer
+Run these once the app is up:
+```bash
+npm run build
+npm run typecheck
+npm run test:contract
+```
+
+These commands help confirm that the backend still compiles and the core API flow is working.
+
+## 🧰 Common Commands
+```bash
+# Development
+npm run start:dev
+
+# Build and type checking
+npm run build
+npm run typecheck
+
+# Testing
+npm run test
+npm run test:contract
+
+# Database seeding
+npm run seed
+
+# Docker
+docker compose up -d
+docker compose down
+docker compose logs -f
+```
+
+## 🛠 Troubleshooting
+
+### Docker containers do not start
+- Make sure Docker Desktop is running.
+- Check the logs with:
+```bash
+docker compose logs -f
+```
+
+### Port 3001 is already in use
+Stop the process using the port or change the API port in the environment file.
+
+### Database connection errors
+Try restarting the containers and reseeding:
+```bash
+docker compose down -v
+docker compose up -d
+npm run seed
+```
+
+### Dependencies look broken
+```bash
+rm -rf node_modules package-lock.json
+npm install
 ```
 
 ## 📦 Project Structure
