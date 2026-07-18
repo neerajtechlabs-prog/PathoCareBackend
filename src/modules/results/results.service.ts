@@ -6,6 +6,7 @@ import { ResultsRepository } from './repositories/results.repository';
 import { CreateTestResultDto } from './dto/create-result.dto';
 import { QueueService } from '../queue/services/queue.service';
 import { NotFoundException } from '@nestjs/common';
+import { ActivityLogService } from '../activity/activity-log.service';
 
 @Injectable()
 export class ResultsService {
@@ -17,6 +18,7 @@ export class ResultsService {
     private readonly auditService: AuditService,
     private readonly resultsRepository: ResultsRepository,
     private readonly queueService: QueueService,
+    private readonly activityLogService?: ActivityLogService,
   ) {
     this.tenantDataSourceService = new TenantDataSourceService(this.configService);
   }
@@ -43,6 +45,16 @@ export class ResultsService {
     });
 
     await this.auditService.logEvent({ tenantSlug, action: 'results.created', entityType: 'test_result', entityId: testResult.id, userId, newValues: { bookingId: dto.bookingId, testId: dto.testId } });
+
+    if (this.activityLogService) {
+      await this.activityLogService.logActivity(
+        tenantSlug,
+        'RESULT_ENTERED',
+        'Result entered',
+        `Result entered for booking ${dto.bookingId} and test ${dto.testId}`,
+        dto.bookingId,
+      );
+    }
 
     // Enqueue evaluation for abnormal/critical detection & notifications
     try {

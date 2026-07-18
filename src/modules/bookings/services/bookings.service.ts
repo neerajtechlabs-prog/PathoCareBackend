@@ -11,13 +11,15 @@ import { buildBookingNumber } from '../utils/booking-number.util';
 import { buildReceiptNumber } from '../utils/receipt-number.util';
 
 import { generateBookingBarcode, generateBookingQrCode } from '../utils/barcode.util';
+import { ActivityLogService } from '../../activity/activity-log.service';
 
 @Injectable()
 export class BookingsService {
   constructor(
     private readonly tenantDSService: TenantDataSourceService,
     private readonly auditService: AuditService,
-    private readonly bookingRepository: BookingRepository
+    private readonly bookingRepository: BookingRepository,
+    private readonly activityLogService: ActivityLogService,
   ) {}
 
   async list(
@@ -77,6 +79,14 @@ export class BookingsService {
         qrCodeGenerated: Boolean(qrCode),
       },
     });
+
+    await this.activityLogService.logActivity(
+      tenantSlug,
+      'BOOKING_CREATED',
+      'New booking created',
+      `Booking ${bookingNumber} created for patient ${booking.patientId}`,
+      booking.id,
+    );
 
     return { ...booking, barcode, qrCode } as Booking & { barcode: string; qrCode: string };
   }
@@ -198,6 +208,14 @@ export class BookingsService {
         updatedPaidAmount: Number(booking.paidAmount || 0) + amount,
       },
     });
+
+    await this.activityLogService.logActivity(
+      tenantSlug,
+      'RECEIPT_CREATED',
+      'Receipt created',
+      `Receipt ${receiptNumber} created for amount ${amount} and reg no. ${booking.bookingNumber}`,
+      bookingId,
+    );
 
     return { receipt: receipt.savedReceipt, booking: receipt.updatedBooking };
   }

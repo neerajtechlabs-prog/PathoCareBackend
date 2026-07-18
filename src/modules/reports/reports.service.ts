@@ -6,6 +6,7 @@ import { Report } from '../../database/entities/tenant/report.entity';
 import { AuditService } from '../audit/audit.service';
 import { QueueService } from '../queue/services/queue.service';
 import { CreateReportDto } from './dto/create-report.dto';
+import { ActivityLogService } from '../activity/activity-log.service';
 
 @Injectable()
 export class ReportsService {
@@ -15,6 +16,7 @@ export class ReportsService {
     private readonly configService: ConfigService,
     private readonly auditService: AuditService,
     private readonly queueService: QueueService,
+    private readonly activityLogService?: ActivityLogService,
   ) {
     this.tenantDataSourceService = new TenantDataSourceService(this.configService);
   }
@@ -60,6 +62,16 @@ export class ReportsService {
       userId,
       newValues: { bookingId: dto.bookingId, reportType: saved.reportType },
     });
+
+    if (this.activityLogService) {
+      await this.activityLogService.logActivity(
+        tenantSlug,
+        'REPORT_GENERATED',
+        'Report generated',
+        `Report generated for booking ${dto.bookingId}`,
+        saved.id,
+      );
+    }
 
     return saved;
   }

@@ -14,6 +14,7 @@ export { NotificationLog } from './notification-log.entity';
 export { Report } from './report.entity';
 export { TestParameterResult } from './test-parameter-result.entity';
 export { TestResult } from './test-result.entity';
+export { ActivityLog } from './activity-log.entity';
 
 import { Lab } from './lab.entity';
 import { Department } from './department.entity';
@@ -31,6 +32,7 @@ import { NotificationLog } from './notification-log.entity';
 import { Report } from './report.entity';
 import { TestParameterResult } from './test-parameter-result.entity';
 import { TestResult } from './test-result.entity';
+import { ActivityLog } from './activity-log.entity';
 
 export const tenantEntities = [
   Lab,
@@ -49,4 +51,5 @@ export const tenantEntities = [
   Report,
   TestParameterResult,
   TestResult,
+  ActivityLog,
 ];

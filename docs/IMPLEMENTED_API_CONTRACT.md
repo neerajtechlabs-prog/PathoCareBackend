@@ -311,10 +311,40 @@ curl -X PUT 'http://localhost:3001/api/results/<RESULT_ID>/verify' \
 9) Dashboard
 
 - GET /api/dashboard/workload — Workload KPIs (auth required)
+- GET /api/dashboard/summary — Consolidated dashboard summary (RECEPTIONIST, LAB_TECHNICIAN, LAB_ADMIN, SUPER_ADMIN)
 
 curl:
 ```
 curl 'http://localhost:3001/api/dashboard/workload' \
+  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
+  -H 'x-tenant-slug: demo'
+```
+
+Example summary response shape:
+```json
+{
+  "stats": {
+    "totalPatients": { "value": 12, "trend": "+10.0%" },
+    "pendingResults": { "value": 3, "trend": "-5.0%" },
+    "dueReceipts": { "value": 2, "trend": "N/A" },
+    "outstandingTests": { "value": 7, "trend": "+20.0%" }
+  },
+  "workload": [
+    { "department": "Hematology", "progress": 75 },
+    { "department": "Biochemistry", "progress": 50 }
+  ],
+  "today": {
+    "bookings": 10,
+    "reportsPending": 3,
+    "receiptsDue": 2
+  },
+  "recentActivity": []
+}
+```
+
+curl summary:
+```
+curl 'http://localhost:3001/api/dashboard/summary' \
   -H 'Authorization: Bearer <ACCESS_TOKEN>' \
   -H 'x-tenant-slug: demo'
 ```
