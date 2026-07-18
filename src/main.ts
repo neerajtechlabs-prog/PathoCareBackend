@@ -2,6 +2,8 @@ import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
+
+const cookieParser = require('cookie-parser');
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
@@ -22,6 +24,7 @@ async function bootstrap(): Promise<void> {
   });
 
   app.use(helmet());
+  app.use(cookieParser());
 
   // Global pipes
   app.useGlobalPipes(

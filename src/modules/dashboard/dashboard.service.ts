@@ -9,7 +9,7 @@ export class DashboardService {
 
   constructor(
     @Optional() tenantDataSourceService?: TenantDataSourceService,
-    @Optional() private readonly misService?: MisService,
+    @Optional() private readonly misService?: MisService
   ) {
     this.tenantDataSourceService =
       tenantDataSourceService ??
@@ -76,9 +76,10 @@ export class DashboardService {
       workloadRows,
     ] = await Promise.all([
       this.misService?.getDayCollection(tenantSlug, today) ?? Promise.resolve({ totalBookings: 0 }),
-      tenantDS.query(`SELECT COUNT(*)::int AS total FROM patients WHERE "createdAt"::date = $1`, [today]),
-      tenantDS.query(`SELECT COUNT(*)::int AS total FROM patients WHERE "createdAt"::date = $1`, [yesterday]),
-      tenantDS.query(
+      this.safeTenantQuery(tenantDS, `SELECT COUNT(*)::int AS total FROM patients WHERE "createdAt"::date = $1`, [today]),
+      this.safeTenantQuery(tenantDS, `SELECT COUNT(*)::int AS total FROM patients WHERE "createdAt"::date = $1`, [yesterday]),
+      this.safeTenantQuery(
+        tenantDS,
         `
           SELECT
             COUNT(*) FILTER (WHERE tr.id IS NULL)::int AS "outstandingTests",
@@ -89,7 +90,8 @@ export class DashboardService {
         `,
         [today],
       ),
-      tenantDS.query(
+      this.safeTenantQuery(
+        tenantDS,
         `
           SELECT
             COUNT(*) FILTER (WHERE tr.id IS NULL)::int AS "outstandingTests",
@@ -100,7 +102,8 @@ export class DashboardService {
         `,
         [yesterday],
       ),
-      tenantDS.query(
+      this.safeTenantQuery(
+        tenantDS,
         `
           SELECT COUNT(DISTINCT b.id)::int AS total
           FROM bookings b
@@ -109,7 +112,8 @@ export class DashboardService {
           )) > 0
         `,
       ),
-      tenantDS.query(
+      this.safeTenantQuery(
+        tenantDS,
         `
           SELECT COUNT(DISTINCT b.id)::int AS total
           FROM bookings b
@@ -118,7 +122,8 @@ export class DashboardService {
           )) > 0
         `,
       ),
-      tenantDS.query(
+      this.safeTenantQuery(
+        tenantDS,
         `
           SELECT
             t.department,
@@ -184,6 +189,18 @@ export class DashboardService {
       // TODO: populate once activity_log table exists (see separate task)
       recentActivity: [],
     };
+  }
+
+  private async safeTenantQuery(tenantDS: any, sql: string, params: unknown[] = []): Promise<any[]> {
+    try {
+      return await tenantDS.query(sql, params);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes('does not exist') || message.includes('relation') || message.includes('column')) {
+        return [];
+      }
+      throw error;
+    }
   }
 
   private getTrend(todayValue: number, yesterdayValue: number): string {

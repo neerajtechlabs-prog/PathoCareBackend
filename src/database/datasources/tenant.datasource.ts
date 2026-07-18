@@ -29,10 +29,9 @@ export class TenantDataSourceService {
       throw error;
     }
   }
-
   private async createForTenant(slug: string): Promise<DataSource> {
-    // TODO: In Week 2, validate tenant exists in public.tenants table
     const schemaName = `tenant_${slug}`;
+    const escapedSchemaName = schemaName.replace(/"/g, '""');
 
     const ds = new DataSource({
       type: 'postgres',
@@ -49,19 +48,19 @@ export class TenantDataSourceService {
       logging: this.configService.get<string>('NODE_ENV') === 'development',
       poolSize: 5,
       connectTimeoutMS: 5000,
+      // 👇 YE ADD KARO — har naye pool connection pe automatically apply hoga
+      extra: {
+        options: `-c search_path="${escapedSchemaName}",public`,
+      },
     });
 
     if (!ds.isInitialized) {
       await ds.initialize();
     }
 
-    const escapedSchemaName = schemaName.replace(/"/g, '""');
-    await ds.query(`SET search_path TO "${escapedSchemaName}", public`);
-
     this.logger.debug(`✅ Tenant DataSource initialized for schema: ${schemaName}`);
     return ds;
   }
-
   async removeForTenant(slug: string): Promise<void> {
     const ds = this.dataSources.get(slug);
     if (ds?.isInitialized) {

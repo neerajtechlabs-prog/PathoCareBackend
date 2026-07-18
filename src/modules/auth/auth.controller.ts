@@ -21,6 +21,7 @@ import { AuthResponseDto } from './dtos/auth-response.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuditService } from '../audit/audit.service';
 import { LoginThrottleGuard } from './guards/login-throttle.guard';
+import { clearRefreshCookieOptions, getRefreshCookieOptions } from './utils/cookie-options';
 
 @ApiTags('auth')
 @Controller(['auth', 'api/auth'])
@@ -154,13 +155,7 @@ export class AuthController {
       );
 
       // Set refresh token in httpOnly cookie
-      res.cookie('refreshToken', authResponse.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-        sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        domain: process.env.COOKIE_DOMAIN || '.pathcare.local',
-      });
+      res.cookie('refreshToken', authResponse.refreshToken, getRefreshCookieOptions(process.env));
 
       this.logger.log(`User logged in: ${user.email} (tenant: ${tenantSlug})`);
       this.authService.loginAttemptService.recordSuccess(req.ip || 'unknown-ip', loginDto.email);
@@ -211,13 +206,7 @@ export class AuthController {
       const authResponse = await this.authService.refreshAccessToken(refreshToken, tenantSlug);
 
       // Update refresh token in httpOnly cookie
-      res.cookie('refreshToken', authResponse.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-        domain: process.env.COOKIE_DOMAIN || '.pathcare.local',
-      });
+      res.cookie('refreshToken', authResponse.refreshToken, getRefreshCookieOptions(process.env));
 
       this.logger.log('Access token refreshed');
       await this.auditService.logEvent({
@@ -249,10 +238,7 @@ export class AuthController {
     const userId = req.user?.sub;
 
     // Clear refresh token cookie
-    res.clearCookie('refreshToken', {
-      httpOnly: true,
-      domain: process.env.COOKIE_DOMAIN || '.pathcare.local',
-    });
+    res.clearCookie('refreshToken', clearRefreshCookieOptions(process.env));
 
     // Revoke all refresh tokens (logout from all devices)
     if (userId) {

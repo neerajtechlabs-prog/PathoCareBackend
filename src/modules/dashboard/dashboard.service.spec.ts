@@ -49,4 +49,43 @@ describe('DashboardService', () => {
     });
     expect(result.recentActivity).toEqual([]);
   });
+
+  it('returns zeroed metrics when tenant booking tables are missing', async () => {
+    const tenantDS = {
+      query: jest.fn().mockImplementation((sql: string) => {
+        if (sql.includes('FROM bookings')) {
+          throw new Error('relation "bookings" does not exist');
+        }
+
+        if (sql.includes('FROM patients')) {
+          return Promise.resolve([{ total: 0 }]);
+        }
+
+        if (sql.includes('FROM booking_tests')) {
+          return Promise.resolve([{ outstandingTests: 0, pendingResults: 0 }]);
+        }
+
+        return Promise.resolve([]);
+      }),
+    };
+
+    const tenantDSService = {
+      getForTenant: jest.fn().mockResolvedValue(tenantDS),
+    } as unknown as TenantDataSourceService;
+
+    const misService = {
+      getDayCollection: jest.fn().mockResolvedValue({ totalBookings: 0 }),
+    } as unknown as MisService;
+
+    const service = new DashboardService(tenantDSService, misService);
+
+    const result = await service.getSummary('demo');
+
+    expect(result.stats.totalPatients).toEqual({ value: 0, trend: 'N/A' });
+    expect(result.stats.pendingResults).toEqual({ value: 0, trend: 'N/A' });
+    expect(result.stats.dueReceipts).toEqual({ value: 0, trend: 'N/A' });
+    expect(result.stats.outstandingTests).toEqual({ value: 0, trend: 'N/A' });
+    expect(result.workload).toEqual([]);
+    expect(result.today).toEqual({ bookings: 0, reportsPending: 0, receiptsDue: 0 });
+  });
 });
