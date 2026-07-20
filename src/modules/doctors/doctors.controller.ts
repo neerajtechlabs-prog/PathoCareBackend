@@ -36,7 +36,13 @@ export class DoctorsController {
   @Roles(UserRole.LAB_ADMIN, UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
   async create(@Headers('x-tenant-slug') tenantSlug: string, @Body() body: CreateDoctorDto, @Req() req: Request & { user?: { sub?: string } }) {
-    return this.doctorsService.create(tenantSlug, body, req.user?.sub || 'system');
+    const payload = {
+      ...body,
+      birthDate: body.birthDate ? new Date(body.birthDate) : undefined,
+      anniversary: body.anniversary ? new Date(body.anniversary) : undefined,
+    };
+
+    return this.doctorsService.create(tenantSlug, payload, req.user?.sub || 'system');
   }
 
   @Put(':id')
@@ -44,7 +50,13 @@ export class DoctorsController {
   @Roles(UserRole.LAB_ADMIN, UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
   async update(@Headers('x-tenant-slug') tenantSlug: string, @Param('id') doctorId: string, @Body() body: UpdateDoctorDto, @Req() req: Request & { user?: { sub?: string } }) {
-    return this.doctorsService.update(tenantSlug, doctorId, body, req.user?.sub || 'system');
+    const payload = {
+      ...body,
+      birthDate: body.birthDate ? new Date(body.birthDate) : undefined,
+      anniversary: body.anniversary ? new Date(body.anniversary) : undefined,
+    };
+
+    return this.doctorsService.update(tenantSlug, doctorId, payload, req.user?.sub || 'system');
   }
 
   @Delete(':id')

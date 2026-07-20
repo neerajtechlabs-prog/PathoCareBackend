@@ -3,6 +3,7 @@ import { TenantDataSourceService } from '../../../database/datasources/tenant.da
 import { AuditService } from '../../audit/audit.service';
 import { DoctorRepository } from '../repositories/doctor.repository';
 import { Doctor } from '../../../database/entities/tenant/doctor.entity';
+import { CreateDoctorDto, UpdateDoctorDto } from '../dto';
 
 @Injectable()
 export class DoctorsService {
@@ -26,10 +27,11 @@ export class DoctorsService {
     return doctor;
   }
 
-  async create(tenantSlug: string, data: Partial<Doctor>, userId: string): Promise<Doctor> {
+  async create(tenantSlug: string, data: Partial<Doctor> | CreateDoctorDto | UpdateDoctorDto, userId: string): Promise<Doctor> {
     const tenantDS = await this.tenantDSService.getForTenant(tenantSlug);
+    const normalizedData = this.normalizeDoctorInput(data);
     const created = await this.doctorRepository.create(tenantDS, {
-      ...data,
+      ...normalizedData,
       createdBy: userId,
       updatedBy: userId,
     });
@@ -49,7 +51,7 @@ export class DoctorsService {
   async update(
     tenantSlug: string,
     doctorId: string,
-    data: Partial<Doctor>,
+    data: Partial<Doctor> | CreateDoctorDto | UpdateDoctorDto,
     userId: string
   ): Promise<Doctor> {
     const tenantDS = await this.tenantDSService.getForTenant(tenantSlug);
@@ -58,8 +60,9 @@ export class DoctorsService {
       throw new NotFoundException(`Doctor ${doctorId} not found`);
     }
 
+    const normalizedData = this.normalizeDoctorInput(data);
     const updated = await this.doctorRepository.update(tenantDS, doctorId, {
-      ...data,
+      ...normalizedData,
       updatedBy: userId,
     });
 
@@ -78,6 +81,20 @@ export class DoctorsService {
     });
 
     return updated;
+  }
+
+  private normalizeDoctorInput(data: Partial<Doctor> | CreateDoctorDto | UpdateDoctorDto): Partial<Doctor> {
+    const normalized = { ...data } as Partial<Doctor>;
+
+    if (normalized.birthDate && typeof normalized.birthDate === 'string') {
+      normalized.birthDate = new Date(normalized.birthDate);
+    }
+
+    if (normalized.anniversary && typeof normalized.anniversary === 'string') {
+      normalized.anniversary = new Date(normalized.anniversary);
+    }
+
+    return normalized;
   }
 
   async delete(tenantSlug: string, doctorId: string, userId: string): Promise<boolean> {

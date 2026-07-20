@@ -35,6 +35,86 @@ async function hashPassword(password: string): Promise<string> {
   });
 }
 
+async function getTableColumnNames(queryRunner: any, schemaName: string, tableName: string): Promise<Set<string>> {
+  const rows = await queryRunner.query(
+    `SELECT column_name FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2`,
+    [schemaName, tableName],
+  );
+
+  const columnNames = (rows ?? [])
+    .map((row: { column_name?: string }) => row.column_name)
+    .filter((value: string | undefined): value is string => Boolean(value));
+
+  return new Set(columnNames);
+}
+
+function buildDoctorSeedInsert(schemaName: string, columns: Set<string>, doctor: Record<string, any>): { sql: string; params: unknown[] } {
+  const quote = (name: string): string => (name === 'id' || name === 'name' ? name : `"${name}"`);
+  const fields: string[] = [quote('id'), quote('name')];
+  const placeholders: string[] = ['gen_random_uuid()', '$1'];
+  const params: unknown[] = [doctor.name];
+
+  if (columns.has('specialization')) {
+    fields.push(quote('specialization'));
+    placeholders.push('$2');
+    params.push(doctor.specialization);
+  }
+
+  if (columns.has('doctorCode')) {
+    fields.push(quote('doctorCode'));
+    placeholders.push('$3');
+    params.push(doctor.doctorCode);
+  }
+
+  if (columns.has('designation')) {
+    fields.push(quote('designation'));
+    placeholders.push('$4');
+    params.push(doctor.designation);
+  }
+
+  const phoneColumn = columns.has('phone1') ? 'phone1' : columns.has('phone') ? 'phone' : null;
+  if (phoneColumn) {
+    fields.push(quote(phoneColumn));
+    placeholders.push(`$${params.length + 1}`);
+    params.push(doctor.phone1 ?? doctor.phone ?? null);
+  }
+
+  if (columns.has('email')) {
+    fields.push(quote('email'));
+    placeholders.push(`$${params.length + 1}`);
+    params.push(doctor.email);
+  }
+
+  if (columns.has('licenseNumber')) {
+    fields.push(quote('licenseNumber'));
+    placeholders.push(`$${params.length + 1}`);
+    params.push(doctor.licenseNumber);
+  }
+
+  if (columns.has('isActive')) {
+    fields.push(quote('isActive'));
+    placeholders.push(`$${params.length + 1}`);
+    params.push(doctor.isActive ?? true);
+  }
+
+  if (columns.has('createdBy')) {
+    fields.push(quote('createdBy'));
+    placeholders.push(`$${params.length + 1}`);
+    params.push(null);
+  }
+
+  if (columns.has('updatedBy')) {
+    fields.push(quote('updatedBy'));
+    placeholders.push(`$${params.length + 1}`);
+    params.push(null);
+  }
+
+  return {
+    sql: `INSERT INTO ${schemaName}.doctors (${fields.join(', ')}) VALUES (${placeholders.join(', ')}) ON CONFLICT (id) DO NOTHING`,
+    params,
+  };
+}
+
 /**
  * Seed data per tenant - one user per role
  */
@@ -256,28 +336,31 @@ async function ensureTenantSeedData(queryRunner: any, tenant: TenantSeedConfig):
     {
       name: 'Dr. Asha Verma',
       specialization: 'Pathology',
-      phone: '9876543210',
+      phone1: '9876543210',
       email: 'asha.verma@pathcare.local',
       licenseNumber: 'DOC-001',
+      doctorCode: 'DOC-001',
+      designation: 'MD',
+      isActive: true,
     },
     {
       name: 'Dr. Rohan Shah',
       specialization: 'Biochemistry',
-      phone: '9876543211',
+      phone1: '9876543211',
       email: 'rohan.shah@pathcare.local',
       licenseNumber: 'DOC-002',
+      doctorCode: 'DOC-002',
+      designation: 'MBBS',
+      isActive: true,
     },
   ];
 
+  const doctorColumns = await getTableColumnNames(queryRunner, schemaName, 'doctors');
+
   for (const doctor of doctorSeeds) {
-    await queryRunner.query(
-      `
-      INSERT INTO ${schemaName}.doctors (id, name, specialization, phone, email, "licenseNumber", "isActive", "createdBy", "updatedBy")
-      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, true, NULL, NULL)
-      ON CONFLICT (id) DO NOTHING
-      `,
-      [doctor.name, doctor.specialization, doctor.phone, doctor.email, doctor.licenseNumber],
-    );
+    const doctorInsert = buildDoctorSeedInsert(schemaName, doctorColumns, doctor);
+    console.log('[seed] doctor insert SQL:', doctorInsert.sql);
+    await queryRunner.query(doctorInsert.sql, doctorInsert.params);
   }
 
   const patientSeeds = [

@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { TenantDataSourceService } from '../../../database/datasources/tenant.datasource';
+import { PublicDataSourceService } from '../../../database/datasources/public.datasource';
 import { AuditService } from '../../audit/audit.service';
 import { TestRepository, TestParameterRepository } from '../repositories';
 import { TestCatalog } from '../../../database/entities/tenant/test-catalog.entity';
@@ -15,7 +16,18 @@ export class TestsService {
     private readonly auditService: AuditService,
     private readonly testRepository: TestRepository,
     private readonly testParameterRepository: TestParameterRepository,
+    private readonly publicDataSourceService: PublicDataSourceService,
   ) {}
+
+  async getPublicTests(): Promise<any[]> {
+    const publicDataSource = this.publicDataSourceService.getDataSource();
+    return publicDataSource.query(`
+      SELECT id, name, code, department, description, "specimenType", unit, "isActive"
+      FROM public.tests
+      WHERE "isActive" IS NOT FALSE
+      ORDER BY name ASC
+    `);
+  }
 
   async findAll(tenantSlug: string, query?: string): Promise<TestCatalog[]> {
     const tenantDS = await this.tenantDSService.getForTenant(tenantSlug);
