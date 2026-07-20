@@ -19,33 +19,101 @@ export class TestsService {
     private readonly publicDataSourceService: PublicDataSourceService,
   ) {}
 
-  async getPublicTests(): Promise<any[]> {
-    const publicDataSource = this.publicDataSourceService.getDataSource();
-    return publicDataSource.query(`
-      SELECT id, name, code, department, description, "specimenType", unit, "isActive"
-      FROM public.tests
-      WHERE "isActive" IS NOT FALSE
-      ORDER BY name ASC
-    `);
+  private normalizeTestCatalog<T extends Partial<TestCatalog>>(test: T): T {
+    return {
+      ...test,
+      rate: Number(test?.rate ?? 0),
+    } as T;
   }
 
-  async findAll(tenantSlug: string, query?: string): Promise<TestCatalog[]> {
+  private normalizePublicTestRow(row: any): any {
+    return {
+      ...row,
+      id: row?.id?.toString() ?? '',
+      rate: Number(row?.rate ?? 0),
+      source: 'public',
+    };
+  }
+
+  private normalizeTenantTestRow(test: TestCatalog): any {
+    return {
+      ...this.normalizeTestCatalog(test),
+      source: 'tenant',
+    };
+  }
+
+  async getPublicTests(): Promise<any[]> {
+    const publicDataSource = this.publicDataSourceService.getDataSource();
+    const rows = await publicDataSource.query(`
+      SELECT
+        "TestID" AS id,
+        "TestName" AS name,
+        "TestCode" AS code,
+        "GroupName" AS department,
+        "TestInitial" AS description,
+        NULL AS "specimenType",
+        NULL AS unit,
+        "IsActive" AS "isActive",
+        "Rate" AS rate
+      FROM public.tests_master
+      WHERE "IsActive" IS NOT FALSE
+      ORDER BY "TestName" ASC
+    `);
+
+    return rows.map((row: any) => ({
+      ...row,
+      id: row?.id?.toString() ?? '',
+      name: row?.name ?? row?.['TestName'] ?? 'Unnamed Test',
+      code: row?.code ?? row?.['TestCode'] ?? '',
+      department: row?.department ?? row?.['GroupName'] ?? null,
+      description: row?.description ?? row?.['TestInitial'] ?? null,
+      rate: Number(row?.rate ?? 0),
+      source: 'public',
+    }));
+  }
+
+  async findAll(tenantSlug: string, query?: string): Promise<any[]> {
     const tenantDS = await this.tenantDSService.getForTenant(tenantSlug);
-    return this.testRepository.findAll(tenantDS, query);
+    const [tenantTests, publicTests] = await Promise.all([
+      this.testRepository.findAll(tenantDS, query),
+      this.getPublicTests(),
+    ]);
+
+    const tenantResults = tenantTests.map((test) => this.normalizeTenantTestRow(test));
+    const publicResults = publicTests.map((test) => this.normalizePublicTestRow(test));
+
+    return [...tenantResults, ...publicResults];
+  }
+
+  async findTenantTests(tenantSlug: string, query?: string): Promise<any[]> {
+    const tenantDS = await this.tenantDSService.getForTenant(tenantSlug);
+    const tests = await this.testRepository.findAll(tenantDS, query);
+    return tests.map((test) => this.normalizeTenantTestRow(test));
+  }
+
+  async findPublicTests(query?: string): Promise<any[]> {
+    const publicTests = await this.getPublicTests();
+    const filtered = query
+      ? publicTests.filter((test: any) =>
+          `${test?.name ?? ''} ${test?.code ?? ''} ${test?.description ?? ''}`.toLowerCase().includes(query.toLowerCase())
+        )
+      : publicTests;
+
+    return filtered.map((test) => this.normalizePublicTestRow(test));
   }
 
   async findById(tenantSlug: string, id: string): Promise<TestCatalog> {
     const tenantDS = await this.tenantDSService.getForTenant(tenantSlug);
     const testCatalog = await this.testRepository.findById(tenantDS, id);
     if (!testCatalog) throw new NotFoundException(`Test ${id} not found`);
-    return testCatalog;
+    return this.normalizeTestCatalog(testCatalog);
   }
 
   async create(tenantSlug: string, data: Partial<TestCatalog>, userId: string): Promise<TestCatalog> {
     const tenantDS = await this.tenantDSService.getForTenant(tenantSlug);
     const created = await this.testRepository.create(tenantDS, { ...data, createdBy: userId, updatedBy: userId });
     await this.auditService.logEvent({ tenantSlug, action: 'tests.created', entityType: 'test', entityId: created.id, userId, newValues: { name: created.name } });
-    return created;
+    return this.normalizeTestCatalog(created);
   }
 
   async update(tenantSlug: string, id: string, data: Partial<TestCatalog>, userId: string): Promise<TestCatalog> {
@@ -55,7 +123,7 @@ export class TestsService {
     const updated = await this.testRepository.update(tenantDS, id, { ...data, updatedBy: userId });
     if (!updated) throw new NotFoundException(`Test ${id} not found`);
     await this.auditService.logEvent({ tenantSlug, action: 'tests.updated', entityType: 'test', entityId: id, userId, oldValues: { name: existing.name }, newValues: { name: updated.name } });
-    return updated;
+    return this.normalizeTestCatalog(updated);
   }
 
   async delete(tenantSlug: string, id: string, userId: string): Promise<boolean> {

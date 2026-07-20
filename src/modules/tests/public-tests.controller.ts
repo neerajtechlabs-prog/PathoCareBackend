@@ -1,6 +1,5 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TestsService } from './services/tests.service';
 
 @ApiTags('public-tests')
@@ -9,8 +8,12 @@ export class PublicTestsController {
   constructor(private readonly testsService: TestsService) {}
 
   @Get()
-  @UseGuards(JwtAuthGuard)
-  async getPublicTests() {
+  async getPublicTests(): Promise<any> {
     return this.testsService.getPublicTests();
+  }
+
+  @Get('search')
+  async searchPublicTests(@Query('q') query?: string): Promise<any> {
+    return this.testsService.findPublicTests(query);
   }
 }

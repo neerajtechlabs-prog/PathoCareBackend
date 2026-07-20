@@ -10,7 +10,12 @@ import { AuditModule } from '../audit/audit.module';
 import { DatabaseModule } from '../../database/database.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([TestCatalog, TestParameter]), TenantModule, AuditModule, DatabaseModule],
+  imports: [
+    TypeOrmModule.forFeature([TestCatalog, TestParameter]),
+    TenantModule,
+    AuditModule,
+    DatabaseModule,
+  ],
   controllers: [TestsController, PublicTestsController],
   providers: [TestsService, TestRepository, TestParameterRepository],
   exports: [TestsService],

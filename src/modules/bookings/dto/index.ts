@@ -1,8 +1,10 @@
 import {
   IsArray,
+  IsBoolean,
   IsDateString,
   IsEmail,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsPositive,
   IsString,
@@ -20,7 +22,7 @@ export class CreateBookingDto {
 
   @IsOptional()
   @IsArray()
-  @IsUUID('4', { each: true })
+  @IsString({ each: true })
   testIds?: string[];
 
   @IsOptional()
@@ -44,8 +46,164 @@ export class CreateBookingDto {
   paymentMode?: string;
 
   @IsOptional()
+  @IsNumber()
   @Min(0)
   amount?: number;
+
+  @IsOptional()
+  @IsString()
+  centre?: string;
+
+  @IsOptional()
+  @IsString()
+  regNo?: string;
+
+  @IsOptional()
+  @IsString()
+  barcode?: string;
+
+  @IsOptional()
+  @IsString()
+  time?: string;
+
+  @IsOptional()
+  @IsString()
+  recordNo?: string;
+
+  @IsOptional()
+  @IsString()
+  uid?: string;
+
+  @IsOptional()
+  @IsString()
+  patientName?: string;
+
+  @IsOptional()
+  @IsString()
+  patientTitle?: string;
+
+  @IsOptional()
+  @IsNumber()
+  age?: number;
+
+  @IsOptional()
+  @IsString()
+  ageUnit?: string;
+
+  @IsOptional()
+  @IsString()
+  sex?: string;
+
+  @IsOptional()
+  @IsString()
+  mobile?: string;
+
+  @IsOptional()
+  @IsString()
+  area?: string;
+
+  @IsOptional()
+  @IsString()
+  doctor?: string;
+
+  @IsOptional()
+  @IsString()
+  doctorEmail?: string;
+
+  @IsOptional()
+  @IsString()
+  doctorType?: string;
+
+  @IsOptional()
+  @IsString()
+  bookingType?: string;
+
+  @IsOptional()
+  @IsString()
+  sample?: string;
+
+  @IsOptional()
+  @IsString()
+  takenBy?: string;
+
+  @IsOptional()
+  @IsString()
+  panel?: string;
+
+  @IsOptional()
+  @IsString()
+  fileNo?: string;
+
+  @IsOptional()
+  @IsString()
+  userRate?: string;
+
+  @IsOptional()
+  @IsString()
+  resultType?: string;
+
+  @IsOptional()
+  @IsArray()
+  tests?: Array<{
+    id?: string;
+    backendId?: string;
+    code?: string;
+    test?: string;
+    reportDays?: number;
+    rate?: number;
+  }>;
+
+  @IsOptional()
+  @IsBoolean()
+  moveAllColumns?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  bookingPlusResult?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  bookingPlusReceipt?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  printWorkingSlip?: boolean;
+
+  @IsOptional()
+  @IsString()
+  extraBy?: string;
+
+  @IsOptional()
+  @IsString()
+  discountBy?: string;
+
+  @IsOptional()
+  @IsString()
+  payType?: string;
+
+  @IsOptional()
+  @IsNumber()
+  discount?: number;
+
+  @IsOptional()
+  @IsNumber()
+  discountPercent?: number;
+
+  @IsOptional()
+  @IsNumber()
+  total?: number;
+
+  @IsOptional()
+  @IsNumber()
+  net?: number;
+
+  @IsOptional()
+  @IsNumber()
+  paid?: number;
+
+  @IsOptional()
+  @IsString()
+  cancelRemark?: string;
 }
 
 export class UpdateBookingDto {

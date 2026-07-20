@@ -5,13 +5,16 @@ import { AuditService } from '../../audit/audit.service';
 import { BookingRepository } from '../repositories/booking.repository';
 import { Booking, BookingStatus } from '../../../database/entities/tenant/booking.entity';
 import { BookingReceipt } from '../../../database/entities/tenant/booking-receipt.entity';
+import { BookingTest } from '../../../database/entities/tenant/booking-test.entity';
 import { CreateBookingDto } from '../dto';
 import { buildBookingNumber } from '../utils/booking-number.util';
 // import { buildReceiptNumber } from '../utils/receipt-number.util';
 import { buildReceiptNumber } from '../utils/receipt-number.util';
+import { buildBookingPersistenceData } from '../utils/booking-persistence.util';
 
 import { generateBookingBarcode, generateBookingQrCode } from '../utils/barcode.util';
 import { ActivityLogService } from '../../activity/activity-log.service';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class BookingsService {
@@ -49,18 +52,40 @@ export class BookingsService {
       existingCount + 1
     );
 
-    const bookingData = {
-      ...data,
-      preferredDate: data.preferredDate ? new Date(data.preferredDate) : undefined,
-      bookingNumber,
-      status: BookingStatus.PENDING,
-      paymentVerified: false,
-      paidAmount: 0,
-      createdBy: userId,
-      updatedBy: userId,
-    };
+    const bookingData = buildBookingPersistenceData(data, bookingNumber, userId);
 
     const booking = await this.bookingRepository.create(tenantDS, bookingData);
+
+    const testEntries = Array.isArray(data.tests) && data.tests.length > 0
+      ? data.tests.map((test) => ({
+          rawId: test.backendId || test.id || '',
+          code: test.code,
+          amount: Number(test.rate ?? 0),
+        }))
+      : (Array.isArray(data.testIds) ? data.testIds.map((testId) => ({
+          rawId: String(testId ?? '').trim(),
+          code: undefined,
+          amount: 0,
+        })) : []);
+
+    if (testEntries.length > 0) {
+      const bookingTestRepository = tenantDS.getRepository(BookingTest);
+      await bookingTestRepository.save(
+        testEntries.map((entry) => {
+          const value = entry.rawId?.trim();
+          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value || '');
+          const generatedTestId = isUuid ? value : uuidv4();
+
+          return {
+            id: uuidv4(),
+            bookingId: booking.id,
+            testId: generatedTestId,
+            testCode: isUuid ? undefined : value || undefined,
+            amount: Number.isFinite(entry.amount) ? Number(entry.amount.toFixed(2)) : 0,
+          };
+        })
+      );
+    }
 
     const barcode = await generateBookingBarcode(bookingNumber);
     const qrCode = await generateBookingQrCode(bookingNumber);

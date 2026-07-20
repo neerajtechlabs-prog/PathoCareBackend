@@ -1,4 +1,4 @@
-import { IsBoolean, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class CreateTestDto {
   @IsString()
@@ -23,6 +23,10 @@ export class CreateTestDto {
   @IsOptional()
   @IsString()
   unit?: string;
+
+  @IsOptional()
+  @IsNumber()
+  rate?: number;
 }
 
 export class UpdateTestDto {
@@ -49,6 +53,10 @@ export class UpdateTestDto {
   @IsOptional()
   @IsString()
   unit?: string;
+
+  @IsOptional()
+  @IsNumber()
+  rate?: number;
 
   @IsOptional()
   @IsBoolean()

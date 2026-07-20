@@ -25,6 +25,9 @@ export class TestCatalog {
   @Column('varchar', { length: 100, nullable: true })
   unit!: string;
 
+  @Column('numeric', { precision: 10, scale: 2, nullable: true, name: 'Rate' })
+  rate?: number;
+
   @Column('boolean', { default: true })
   isActive!: boolean;
 
