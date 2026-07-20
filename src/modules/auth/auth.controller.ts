@@ -17,6 +17,7 @@ import { AuthService } from './auth.service';
 import { TenantDataSourceService } from '../../database/datasources/tenant.datasource';
 import { UsersRepository } from '../users/users.repository';
 import { LoginDto } from './dtos/login.dto';
+import { SignupDto } from './dtos/signup.dto';
 import { AuthResponseDto } from './dtos/auth-response.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuditService } from '../audit/audit.service';
@@ -180,6 +181,15 @@ export class AuthController {
       this.logger.error(`Login error: ${message}`, stack);
       throw new UnauthorizedException('Login failed');
     }
+  }
+
+  @Post('signup')
+  @ApiOperation({ summary: 'Create a new tenant and user account' })
+  @ApiBody({ type: SignupDto })
+  @ApiResponse({ status: 201, description: 'User created successfully' })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  async signup(@Body() signupDto: SignupDto) {
+    return this.authService.signup(signupDto);
   }
 
   @Post('refresh')

@@ -16,6 +16,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RefreshTokenRepository } from './repositories/refresh-token.repository';
 import { LoginAttemptService } from './services/login-attempt.service';
 import { LoginThrottleGuard } from './guards/login-throttle.guard';
+import { AuditModule } from '../audit/audit.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { LoginThrottleGuard } from './guards/login-throttle.guard';
     TypeOrmModule.forFeature([User, RefreshToken]),
     DatabaseModule,
     TenantModule,
+    AuditModule,
   ],
   providers: [
     AuthService,

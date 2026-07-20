@@ -436,16 +436,32 @@ export async function bootstrap(): Promise<void> {
     await queryRunner.query('CREATE EXTENSION IF NOT EXISTS pgcrypto');
     await queryRunner.query(
       `
-      CREATE TABLE IF NOT EXISTS public.tenants (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        slug VARCHAR(50) UNIQUE NOT NULL,
-        name VARCHAR(255) NOT NULL,
-        schema_name VARCHAR(100) NOT NULL UNIQUE,
-        status VARCHAR(20) DEFAULT 'active',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-      `,
+      CREATE TABLE public.tenants (
+	id uuid DEFAULT gen_random_uuid() NOT NULL,
+	slug varchar(50) NOT NULL,
+	"name" varchar(255) NOT NULL,
+	schema_name varchar(100) NOT NULL,
+	status varchar(20) DEFAULT 'active'::character varying NULL,
+	lab_code varchar(50) NULL,
+	registration_number varchar(100) NULL,
+	gst_number varchar(20) NULL,
+	mobile_number varchar(20) NULL,
+	country varchar(100) NULL,
+	state varchar(100) NULL,
+	city varchar(100) NULL,
+	pin_code varchar(20) NULL,
+	complete_address text NULL,
+	plan varchar(50) DEFAULT 'Starter'::character varying NULL,
+	terms_accepted bool DEFAULT false NULL,
+	privacy_accepted bool DEFAULT false NULL,
+	created_at timestamp DEFAULT CURRENT_TIMESTAMP NULL,
+	updated_at timestamp DEFAULT CURRENT_TIMESTAMP NULL,
+	CONSTRAINT tenants_pkey PRIMARY KEY (id),
+	CONSTRAINT tenants_schema_name_key UNIQUE (schema_name),
+	CONSTRAINT tenants_slug_key UNIQUE (slug),
+	CONSTRAINT tenants_lab_code_key UNIQUE (lab_code)
+);
+      `
     );
 
     const tenants: TenantSeedConfig[] = [

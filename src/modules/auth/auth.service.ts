@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as argon2 from 'argon2';
@@ -8,6 +8,10 @@ import { AuthResponseDto } from './dtos/auth-response.dto';
 import { RefreshTokenRepository } from './repositories/refresh-token.repository';
 import { TenantDataSourceService } from '../../database/datasources/tenant.datasource';
 import { LoginAttemptService } from './services/login-attempt.service';
+import { PublicDataSourceService } from '../../database/datasources/public.datasource';
+import { AuditService } from '../audit/audit.service';
+import { User, UserRole } from '../../database/entities/tenant/user.entity';
+import { SignupDto } from './dtos/signup.dto';
 
 @Injectable()
 export class AuthService {
@@ -18,7 +22,9 @@ export class AuthService {
     private configService: ConfigService,
     private refreshTokenRepository: RefreshTokenRepository,
     private tenantDataSourceService: TenantDataSourceService,
-    public readonly loginAttemptService: LoginAttemptService
+    public readonly loginAttemptService: LoginAttemptService,
+    private readonly publicDataSourceService: PublicDataSourceService,
+    private readonly auditService: AuditService,
   ) {}
 
   /**
@@ -236,6 +242,162 @@ export class AuthService {
       default:
         return new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     }
+  }
+
+  async signup(payload: SignupDto): Promise<{ message: string; user: Partial<User>; password: string }> {
+    const resolvedEmail = payload.email || payload.username || '';
+    const tenantSlug = this.normalizeTenantSlug(payload.tenantSlug || payload.labName || payload.tenantName || payload.name || resolvedEmail);
+    const tenantName = payload.labName || payload.tenantName || payload.name;
+    const chosenRole = payload.role || UserRole.RECEPTIONIST;
+
+    if (!resolvedEmail || !payload.password || !payload.name) {
+      throw new BadRequestException('Name, email, and password are required');
+    }
+
+    const publicDS = this.publicDataSourceService.getDataSource();
+    const existingTenantRows = await publicDS.query(
+      'SELECT slug, schema_name FROM public.tenants WHERE slug = $1 LIMIT 1',
+      [tenantSlug],
+    );
+
+    if (existingTenantRows?.length) {
+      const existingTenant = existingTenantRows[0] as { slug: string; schema_name: string };
+      const tenantDS = await this.tenantDataSourceService.getForTenant(existingTenant.slug);
+      const existingUser = await tenantDS.getRepository(User).findOne({ where: { email: resolvedEmail } });
+      if (existingUser) {
+        throw new BadRequestException('User with this email already exists for this tenant');
+      }
+    }
+
+    const schemaName = this.getSchemaName(tenantSlug);
+    await publicDS.query(
+      `
+        INSERT INTO public.tenants (
+          slug,
+          name,
+          schema_name,
+          status,
+          lab_code,
+          registration_number,
+          gst_number,
+          mobile_number,
+          country,
+          state,
+          city,
+          pin_code,
+          complete_address,
+          plan,
+          terms_accepted,
+          privacy_accepted
+        )
+        VALUES ($1, $2, $3, 'active', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        ON CONFLICT (slug) DO UPDATE SET
+          name = EXCLUDED.name,
+          schema_name = EXCLUDED.schema_name,
+          status = 'active',
+          lab_code = EXCLUDED.lab_code,
+          registration_number = EXCLUDED.registration_number,
+          gst_number = EXCLUDED.gst_number,
+          mobile_number = EXCLUDED.mobile_number,
+          country = EXCLUDED.country,
+          state = EXCLUDED.state,
+          city = EXCLUDED.city,
+          pin_code = EXCLUDED.pin_code,
+          complete_address = EXCLUDED.complete_address,
+          plan = EXCLUDED.plan,
+          terms_accepted = EXCLUDED.terms_accepted,
+          privacy_accepted = EXCLUDED.privacy_accepted,
+          updated_at = CURRENT_TIMESTAMP
+      `,
+      [
+        tenantSlug,
+        tenantName,
+        schemaName,
+        payload.labCode || null,
+        payload.registrationNumber || null,
+        payload.gstNumber || null,
+        payload.mobileNumber || null,
+        payload.country || null,
+        payload.state || null,
+        payload.city || null,
+        payload.pinCode || null,
+        payload.completeAddress || null,
+        payload.plan || null,
+        payload.terms === true,
+        payload.privacy === true,
+      ],
+    );
+
+    const tenantDS = await this.tenantDataSourceService.getForTenant(tenantSlug);
+    await tenantDS.query(`CREATE SCHEMA IF NOT EXISTS ${schemaName}`);
+    await tenantDS.query(`CREATE TABLE IF NOT EXISTS ${schemaName}.users (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      email VARCHAR(255) NOT NULL UNIQUE,
+      name VARCHAR(255) NOT NULL,
+      password_hash VARCHAR(255) NOT NULL,
+      role VARCHAR(50) NOT NULL DEFAULT 'Receptionist',
+      is_active BOOLEAN DEFAULT true,
+      phone VARCHAR(20),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`);
+
+    const passwordHash = await this.hashPassword(payload.password);
+    const user = await tenantDS.getRepository(User).save(
+      tenantDS.getRepository(User).create({
+        email: resolvedEmail,
+        name: payload.name,
+        passwordHash,
+        role: chosenRole,
+        isActive: true,
+      }),
+    );
+
+    await this.auditService.logEvent({
+      tenantSlug,
+      action: 'users.created',
+      entityType: 'users',
+      entityId: user.id,
+      userId: user.id,
+      userEmail: user.email,
+      role: user.role,
+      newValues: {
+        source: 'signup',
+        tenantName,
+        role: chosenRole,
+        labCode: payload.labCode,
+        registrationNumber: payload.registrationNumber,
+        designation: payload.designation,
+        username: payload.username,
+      },
+    });
+
+    await this.sendSignupCredentialsEmail(resolvedEmail, payload.name, payload.password, tenantSlug);
+
+    return {
+      message: 'User created successfully',
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+      password: payload.password,
+    };
+  }
+
+  private normalizeTenantSlug(value: string): string {
+    const normalized = value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    return normalized || 'tenant';
+  }
+
+  private getSchemaName(tenantSlug: string): string {
+    return `tenant_${this.normalizeTenantSlug(tenantSlug)}`;
+  }
+
+  private async sendSignupCredentialsEmail(email: string, name: string, password: string, tenantSlug: string): Promise<void> {
+    this.logger.log(`Signup credentials email prepared for ${email} (${name}) in tenant ${tenantSlug}`);
+    this.logger.log(`Temporary password for ${email}: ${password}`);
   }
 
   /**
