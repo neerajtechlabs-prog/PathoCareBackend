@@ -1,17 +1,12 @@
-import { Controller, Get, Param, UseGuards, Req } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Param, Req, HttpCode, Post, Body } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { TenantService } from './tenant.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { UserRole } from '../../database/entities/tenant/user.entity';
 import { AuditService } from '../audit/audit.service';
+import { DeleteTenantInitDto } from './dtos/delete-tenant-init.dto';
+import { DeleteTenantConfirmDto } from './dtos/delete-tenant-confirm.dto';
 
 @ApiTags('tenants')
-@ApiBearerAuth()
 @Controller('tenants')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.SUPER_ADMIN, UserRole.LAB_ADMIN)
 export class TenantController {
   constructor(
     private readonly tenantService: TenantService,
@@ -63,5 +58,49 @@ export class TenantController {
     });
 
     return this.tenantService.getIsolationProof(slug);
+  }
+
+  @Post('delete/init')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Initialize tenant deletion with OTP email' })
+  @ApiResponse({ status: 200, description: 'Deletion OTP sent to email' })
+  async initTenantDelete(
+    @Body() dto: DeleteTenantInitDto,
+    @Req() req: any,
+  ): Promise<{ message: string; referenceId: string }> {
+    await this.auditService.logEvent({
+      tenantSlug: req.headers['x-tenant-slug'] ? String(req.headers['x-tenant-slug']) : dto.slug,
+      action: 'tenants.delete.init',
+      entityType: 'tenant',
+      entityId: dto.slug,
+      userId: req.user?.sub,
+      userEmail: req.user?.email,
+      role: req.user?.role,
+      newValues: { source: 'tenant_delete_init_endpoint', email: dto.email },
+    });
+
+    return this.tenantService.initTenantDelete(dto.slug, dto.email);
+  }
+
+  @Post('delete/confirm')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Confirm tenant deletion with OTP' })
+  @ApiResponse({ status: 200, description: 'Tenant deleted successfully' })
+  async confirmTenantDelete(
+    @Body() dto: DeleteTenantConfirmDto,
+    @Req() req: any,
+  ): Promise<{ message: string; slug: string; schemaName: string }> {
+    await this.auditService.logEvent({
+      tenantSlug: req.headers['x-tenant-slug'] ? String(req.headers['x-tenant-slug']) : dto.slug,
+      action: 'tenants.delete.confirm',
+      entityType: 'tenant',
+      entityId: dto.slug,
+      userId: req.user?.sub,
+      userEmail: req.user?.email,
+      role: req.user?.role,
+      newValues: { source: 'tenant_delete_confirm_endpoint', referenceId: dto.otpCode },
+    });
+
+    return this.tenantService.confirmTenantDelete(dto.slug, dto.otpCode);
   }
 }

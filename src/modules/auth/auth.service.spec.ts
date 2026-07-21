@@ -68,9 +68,11 @@ describe('AuthService signup', () => {
       role: UserRole.RECEPTIONIST,
     });
 
-    const tenantInsertCall = publicDataSource.query.mock.calls.find((call: unknown[]) => typeof call[0] === 'string' && call[0].includes('INSERT INTO public.tenants'));
+    const tenantInsertCall = publicDataSource.query.mock.calls.find(
+      (call: unknown[]) => typeof call[0] === 'string' && call[0].includes('INSERT INTO public.tenants'),
+    );
     expect(tenantInsertCall?.[0]).toContain('email');
-    expect(tenantInsertCall?.[3]).toBe('new.user@example.com');
+    expect((tenantInsertCall?.[1] as unknown[] | undefined)?.[2]).toBe('new.user@example.com');
   });
 
   it('returns a bad request when a user with the same email already exists in the tenant schema', async () => {

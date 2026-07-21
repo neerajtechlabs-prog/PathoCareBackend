@@ -1,5 +1,6 @@
 import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
 import { DatabaseModule } from '../../database/database.module';
+import { QueueModule } from '../queue/queue.module';
 import { TenantService } from './tenant.service';
 import { TenantController } from './tenant.controller';
 import { TenantMiddleware } from './tenant.middleware';
@@ -7,7 +8,7 @@ import { TenantDataSourceService } from '../../database/datasources/tenant.datas
 import { AuditService } from '../audit/audit.service';
 
 @Module({
-  imports: [DatabaseModule],
+  imports: [DatabaseModule, QueueModule],
   controllers: [TenantController],
   providers: [TenantService, TenantMiddleware, TenantDataSourceService, AuditService],
   exports: [TenantService, TenantDataSourceService, AuditService],
