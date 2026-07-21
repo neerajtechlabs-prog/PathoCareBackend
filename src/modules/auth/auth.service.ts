@@ -249,6 +249,7 @@ export class AuthService {
     const tenantSlug = this.normalizeTenantSlug(payload.tenantSlug || payload.labName || payload.tenantName || payload.name || resolvedEmail);
     const tenantName = payload.labName || payload.tenantName || payload.name;
     const chosenRole = payload.role || UserRole.RECEPTIONIST;
+    const generatedLabCode = (payload.labCode || '').trim() || this.generateLabCode(tenantSlug);
 
     if (!resolvedEmail || !payload.password || !payload.name) {
       throw new BadRequestException('Name, email, and password are required');
@@ -275,6 +276,7 @@ export class AuthService {
         INSERT INTO public.tenants (
           slug,
           name,
+          email,
           schema_name,
           status,
           lab_code,
@@ -290,9 +292,10 @@ export class AuthService {
           terms_accepted,
           privacy_accepted
         )
-        VALUES ($1, $2, $3, 'active', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        VALUES ($1, $2, $3, $4, 'active', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
         ON CONFLICT (slug) DO UPDATE SET
           name = EXCLUDED.name,
+          email = EXCLUDED.email,
           schema_name = EXCLUDED.schema_name,
           status = 'active',
           lab_code = EXCLUDED.lab_code,
@@ -312,8 +315,9 @@ export class AuthService {
       [
         tenantSlug,
         tenantName,
+        resolvedEmail,
         schemaName,
-        payload.labCode || null,
+        generatedLabCode,
         payload.registrationNumber || null,
         payload.gstNumber || null,
         payload.mobileNumber || null,
@@ -343,15 +347,33 @@ export class AuthService {
     );`);
 
     const passwordHash = await this.hashPassword(payload.password);
-    const user = await tenantDS.getRepository(User).save(
-      tenantDS.getRepository(User).create({
-        email: resolvedEmail,
-        name: payload.name,
-        passwordHash,
-        role: chosenRole,
-        isActive: true,
-      }),
-    );
+    const userRepository = tenantDS.getRepository(User);
+    const existingUserInSchema = await userRepository.findOne({ where: { email: resolvedEmail } });
+    if (existingUserInSchema) {
+      throw new BadRequestException('User with this email already exists for this tenant');
+    }
+
+    let user: User;
+    try {
+      user = await userRepository.save(
+        userRepository.create({
+          email: resolvedEmail,
+          name: payload.name,
+          passwordHash,
+          role: chosenRole,
+          isActive: true,
+        }),
+      );
+    } catch (error) {
+      const errorCode = (error as { code?: string; driverError?: { code?: string } }).code
+        || (error as { driverError?: { code?: string } }).driverError?.code;
+
+      if (errorCode === '23505') {
+        throw new BadRequestException('User with this email already exists for this tenant');
+      }
+
+      throw error;
+    }
 
     await this.auditService.logEvent({
       tenantSlug,
@@ -365,7 +387,7 @@ export class AuthService {
         source: 'signup',
         tenantName,
         role: chosenRole,
-        labCode: payload.labCode,
+        labCode: generatedLabCode,
         registrationNumber: payload.registrationNumber,
         designation: payload.designation,
         username: payload.username,
@@ -384,6 +406,12 @@ export class AuthService {
       },
       password: payload.password,
     };
+  }
+
+  private generateLabCode(tenantSlug: string): string {
+    const slugPart = tenantSlug.replace(/[^a-z0-9]+/gi, '').slice(0, 4).toUpperCase();
+    const randomPart = Math.random().toString(36).slice(2, 6).toUpperCase();
+    return `${slugPart || 'PCL'}${randomPart}`;
   }
 
   private normalizeTenantSlug(value: string): string {

@@ -440,6 +440,7 @@ export async function bootstrap(): Promise<void> {
 	id uuid DEFAULT gen_random_uuid() NOT NULL,
 	slug varchar(50) NOT NULL,
 	"name" varchar(255) NOT NULL,
+	email varchar(255) NULL,
 	schema_name varchar(100) NOT NULL,
 	status varchar(20) DEFAULT 'active'::character varying NULL,
 	lab_code varchar(50) NULL,
@@ -473,10 +474,11 @@ export async function bootstrap(): Promise<void> {
       console.log(`\n📝 Ensuring tenant ${tenant.slug} exists...`);
       await queryRunner.query(
         `
-        INSERT INTO public.tenants (slug, name, schema_name, status)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO public.tenants (slug, name, email, schema_name, status)
+        VALUES ($1, $2, NULL, $3, $4)
         ON CONFLICT (slug) DO UPDATE SET
           name = EXCLUDED.name,
+          email = EXCLUDED.email,
           schema_name = EXCLUDED.schema_name,
           status = EXCLUDED.status,
           updated_at = CURRENT_TIMESTAMP
