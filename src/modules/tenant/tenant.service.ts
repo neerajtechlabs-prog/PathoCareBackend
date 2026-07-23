@@ -1,7 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger, Optional } from '@nestjs/common';
 import { PublicDataSourceService } from '../../database/datasources/public.datasource';
 import { TenantDataSourceService } from '../../database/datasources/tenant.datasource';
 import { v4 as uuidv4 } from 'uuid';
+import { TenantCacheService } from './tenant-cache.service';
+import { TenantProvisioningService } from './services/tenant-provisioning.service';
 
 @Injectable()
 export class TenantService {
@@ -9,7 +11,9 @@ export class TenantService {
 
   constructor(
     private readonly publicDataSourceService: PublicDataSourceService,
-    private readonly tenantDataSourceService: TenantDataSourceService
+    private readonly tenantDataSourceService: TenantDataSourceService,
+    private readonly tenantProvisioningService: TenantProvisioningService,
+    @Optional() private readonly tenantCacheService?: TenantCacheService,
   ) {}
 
   async getTenantInfo(
@@ -34,6 +38,36 @@ export class TenantService {
     };
   }
 
+  async approveTenant(slug: string): Promise<{ message: string; slug: string; status: string }> {
+    const publicDataSource = this.publicDataSourceService.getDataSource();
+    const rows = await publicDataSource.query(
+      'SELECT id, slug, schema_name, status FROM public.tenants WHERE slug = $1 LIMIT 1',
+      [slug],
+    );
+
+    if (!rows || rows.length === 0) {
+      throw new NotFoundException(`Tenant not found: ${slug}`);
+    }
+
+    const tenant = rows[0] as { id: string; slug: string; schema_name: string; status: string };
+    if (tenant.status !== 'pending_approval') {
+      throw new BadRequestException(`Tenant is not pending approval (current status: ${tenant.status})`);
+    }
+
+    await publicDataSource.query(
+      'UPDATE public.tenants SET status = $1, approved_at = NOW() WHERE id = $2',
+      ['approved', tenant.id],
+    );
+
+    await this.tenantProvisioningService.provisionTenant(tenant.id);
+
+    return {
+      message: 'Tenant approved and provisioned successfully',
+      slug: tenant.slug,
+      status: 'active',
+    };
+  }
+
   async deleteTenant(slug: string): Promise<{ message: string; slug: string; schemaName: string }> {
     if (!slug || typeof slug !== 'string' || slug.trim() === '') {
       throw new BadRequestException('Tenant slug is required');
@@ -48,6 +82,7 @@ export class TenantService {
     const sanitizedSchemaName = tenantInfo.schemaName.replace(/"/g, '""');
     await publicDataSource.query(`DROP SCHEMA IF EXISTS "${sanitizedSchemaName}" CASCADE;`);
     await publicDataSource.query('DELETE FROM public.tenants WHERE slug = $1', [slug]);
+    await this.tenantCacheService?.invalidate(slug);
 
     this.logger.log(`Tenant deleted: ${slug} (schema: ${tenantInfo.schemaName})`);
     return {

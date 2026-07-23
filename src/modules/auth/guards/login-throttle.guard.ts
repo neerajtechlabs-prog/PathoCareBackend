@@ -15,12 +15,13 @@ export class LoginThrottleGuard implements CanActivate {
 
   constructor(private readonly loginAttemptService: LoginAttemptService) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
     const ip = request.ip || 'unknown-ip';
     const email = String(request.body?.email || 'unknown-email').toLowerCase();
+    const tenantSlug = String(request.headers['x-tenant-slug'] || 'unknown-tenant');
 
-    const outcome = this.loginAttemptService.getStatus(ip, email);
+    const outcome = await this.loginAttemptService.getStatus(tenantSlug, ip, email);
 
     if (!outcome.allowed) {
       this.logger.warn(`Login throttled for ${email} from ${ip}`);

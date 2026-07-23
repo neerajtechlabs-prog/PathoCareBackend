@@ -43,6 +43,24 @@ This tracker reflects the current implementation status of the backend project a
 - ✅ Refresh token handling and secure cookies wired (basic flow in place; DB-backed rotation pending)
 - ✅ RBAC and audit logging
 
+#### Extension (2026-07-23) — OTP-verified registration + lazy tenant provisioning
+*Replaces immediate-provisioning signup with a deferred flow: signup → OTP → admin approval → schema provisioned on first login.*
+- ✅ Step 1: `public.tenants` extended with full status lifecycle
+  (`unverified` → `pending_approval` → `approved` → `provisioning` → `active`,
+  plus `provisioning_failed`/`suspended`/`expired`) and new columns for
+  admin credentials, OTP state, and labCode — migration added
+- ✅ Step 2: Signup rewritten to be lightweight — validates input, reserves a
+  unique slug, hashes password (Argon2), inserts a single `unverified`
+  `public.tenants` row; no tenant datasource/schema/user created at signup
+- ✅ Step 3: OTP module implemented — `OtpDeliveryChannel` interface with
+  `EmailOtpChannel`, generation/hashing/expiry (10 min)/attempt limit
+  (5)/resend cooldown (60s, max 5/hour), emails queued via BullMQ
+- 🔄 Step 4: `POST /auth/verify-otp` + labCode generation service — not started
+- ⏳ Step 5: Login rewrite for labCode+email+password resolution and
+  status-specific responses — not started
+- ⏳ Step 6: Tenant provisioning service with Postgres advisory lock +
+  first-login credential migration into tenant `users` table — not started
+
 ### Week 4 — Lab Config + Queue + Socket.io
 - ✅ Basic health and tenant endpoints available
 - ✅ Docker + Redis foundation present

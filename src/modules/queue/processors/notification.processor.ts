@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Job, Worker } from 'bullmq';
 import { TenantDataSourceService } from '../../../database/datasources/tenant.datasource';
 import { NotificationLog, NotificationStatus } from '../../../database/entities/tenant/notification-log.entity';
+import { MailService } from '../../notifications/services/mail.service';
 import { SendSmsJobData, SendEmailJobData, SendWhatsappJobData, QueueName } from '../queue.types';
 import { BaseProcessor } from './base.processor';
 
@@ -11,7 +12,10 @@ import { BaseProcessor } from './base.processor';
  */
 @Injectable()
 export class NotificationProcessor extends BaseProcessor {
-  constructor(private readonly tenantDSService?: TenantDataSourceService) {
+  constructor(
+    private readonly tenantDSService?: TenantDataSourceService,
+    private readonly mailService: MailService = new MailService(),
+  ) {
     super(NotificationProcessor.name);
   }
 
@@ -34,6 +38,8 @@ export class NotificationProcessor extends BaseProcessor {
           result = await this.processSms(job as Job<SendSmsJobData>);
           break;
         case 'send-email':
+        case 'send-otp':
+        case 'send-labcode':
           result = await this.processEmail(job as Job<SendEmailJobData>);
           break;
         case 'send-whatsapp':
@@ -84,23 +90,37 @@ export class NotificationProcessor extends BaseProcessor {
 
   /**
    * Process Email notification
-   * In production: use SendGrid, SES, or similar
    */
   private async processEmail(job: Job<SendEmailJobData>): Promise<any> {
-    const { tenantSlug, to, subject, template, referenceId } = job.data;
+    const { tenantSlug, to, subject, template, referenceId, recipient, otpCode, labCode } = job.data as SendEmailJobData & {
+      recipient?: string;
+      otpCode?: string;
+      labCode?: string;
+    };
 
-    this.logger.log(`[${tenantSlug}] Sending email to ${to} (template: ${template})`);
+    const emailRecipient = recipient || to;
+    const emailSubject = subject || (otpCode ? 'PathCare verification code' : 'PathCare notification');
+    const emailBody = otpCode
+      ? `Hello ${emailRecipient},\n\nYour OTP code is ${otpCode}.\n\nPlease enter it to continue.`
+      : labCode
+        ? `Hello ${emailRecipient},\n\nYour lab code is ${labCode}.`
+        : `Hello ${emailRecipient},\n\nThis is your requested notification.`;
 
-    // Simulate email sending
-    await new Promise(resolve => setTimeout(resolve, 300));
+    if (!emailRecipient) {
+      throw new Error('Email recipient is required');
+    }
+
+    this.logger.log(`[${tenantSlug}] Sending email to ${emailRecipient} (template: ${template})`);
+
+    await this.mailService.sendMail(emailRecipient, emailSubject, emailBody);
 
     return {
       type: 'email',
-      to,
-      subject,
+      to: emailRecipient,
+      subject: emailSubject,
       template,
       status: 'sent',
-      provider: 'sendgrid',
+      provider: 'smtp',
       referenceId,
       sentAt: new Date().toISOString(),
     };
@@ -156,16 +176,16 @@ export class NotificationProcessor extends BaseProcessor {
   /**
    * Create worker for this processor
    */
-  static createWorker(redisConfig: any, tenantDSService?: TenantDataSourceService): Worker {
+  static createWorker(redisConfig: any, tenantDSService?: TenantDataSourceService, queueName: QueueName = QueueName.NOTIFICATIONS): Worker {
     return new Worker(
-      QueueName.NOTIFICATIONS,
+      queueName,
       async job => {
         const processor = new NotificationProcessor(tenantDSService);
         return processor.process(job);
       },
       {
         connection: redisConfig,
-        concurrency: 5, // Higher concurrency for notifications
+        concurrency: 5,
       },
     );
   }

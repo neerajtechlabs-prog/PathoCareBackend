@@ -1,4 +1,4 @@
-import { ExecutionContext } from '@nestjs/common';
+import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { RolesGuard } from './roles.guard';
 import { UserRole } from '../../../database/entities/tenant/user.entity';
@@ -19,7 +19,7 @@ describe('RolesGuard', () => {
 
     const context = {
       switchToHttp: () => ({
-        getRequest: () => ({ user: { role: UserRole.LAB_ADMIN } }),
+        getRequest: () => ({ headers: {}, user: { role: UserRole.LAB_ADMIN } }),
       }),
       getHandler: () => ({}),
       getClass: () => ({}),
@@ -28,17 +28,31 @@ describe('RolesGuard', () => {
     expect(guard.canActivate(context)).toBe(true);
   });
 
-  it('denies access when the user does not have any required role', () => {
-    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([UserRole.SUPER_ADMIN]);
+  it('allows a Doctor when the endpoint explicitly includes the Doctor role', () => {
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([UserRole.DOCTOR]);
 
     const context = {
       switchToHttp: () => ({
-        getRequest: () => ({ user: { role: UserRole.RECEPTIONIST } }),
+        getRequest: () => ({ headers: {}, user: { role: UserRole.DOCTOR } }),
       }),
       getHandler: () => ({}),
       getClass: () => ({}),
     } as unknown as ExecutionContext;
 
-    expect(guard.canActivate(context)).toBe(false);
+    expect(guard.canActivate(context)).toBe(true);
+  });
+
+  it('throws when the user does not have any required role', () => {
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([UserRole.SUPER_ADMIN]);
+
+    const context = {
+      switchToHttp: () => ({
+        getRequest: () => ({ headers: {}, user: { role: UserRole.RECEPTIONIST } }),
+      }),
+      getHandler: () => ({}),
+      getClass: () => ({}),
+    } as unknown as ExecutionContext;
+
+    expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
   });
 });

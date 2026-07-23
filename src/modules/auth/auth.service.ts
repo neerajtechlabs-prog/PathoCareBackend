@@ -1,17 +1,19 @@
-import { Injectable, UnauthorizedException, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger, BadRequestException, Optional } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as argon2 from 'argon2';
 import { v4 as uuidv4 } from 'uuid';
 import { JwtPayload } from './strategies/jwt.strategy';
 import { AuthResponseDto } from './dtos/auth-response.dto';
+import { SignupResponseDto } from './dtos/signup-response.dto';
 import { RefreshTokenRepository } from './repositories/refresh-token.repository';
 import { TenantDataSourceService } from '../../database/datasources/tenant.datasource';
 import { LoginAttemptService } from './services/login-attempt.service';
 import { PublicDataSourceService } from '../../database/datasources/public.datasource';
-import { AuditService } from '../audit/audit.service';
-import { User, UserRole } from '../../database/entities/tenant/user.entity';
 import { SignupDto } from './dtos/signup.dto';
+import { TenantCacheService } from '../tenant/tenant-cache.service';
+import { TenantStatus } from '../tenant/enums/tenant-status.enum';
+import { OtpService } from '../verification/otp.service';
 
 @Injectable()
 export class AuthService {
@@ -24,7 +26,8 @@ export class AuthService {
     private tenantDataSourceService: TenantDataSourceService,
     public readonly loginAttemptService: LoginAttemptService,
     private readonly publicDataSourceService: PublicDataSourceService,
-    private readonly auditService: AuditService,
+    private readonly otpService: OtpService,
+    @Optional() private readonly tenantCacheService?: TenantCacheService,
   ) {}
 
   /**
@@ -90,11 +93,11 @@ export class AuthService {
    */
   async refreshAccessToken(refreshToken: string, tenantSlug: string): Promise<AuthResponseDto> {
     try {
-      const payload = this.jwtService.verify(refreshToken, {
+      const payload = this.jwtService.verify<JwtPayload>(refreshToken, {
         secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
       });
 
-      if (!payload.sub || !payload.email || !payload.tenantSlug) {
+      if (!payload.sub || !payload.email || !payload.tenantId || !payload.tenantSlug) {
         throw new UnauthorizedException('Invalid refresh token payload');
       }
 
@@ -116,6 +119,7 @@ export class AuthService {
       const newAccessToken = this.generateAccessToken({
         sub: payload.sub,
         email: payload.email,
+        tenantId: payload.tenantId,
         tenantSlug: payload.tenantSlug,
         role: payload.role,
       });
@@ -123,6 +127,7 @@ export class AuthService {
       const newRefreshTokenString = this.generateRefreshToken({
         sub: payload.sub,
         email: payload.email,
+        tenantId: payload.tenantId,
         tenantSlug: payload.tenantSlug,
         role: payload.role,
       });
@@ -161,12 +166,14 @@ export class AuthService {
   async buildAuthResponse(
     userId: string,
     email: string,
+    tenantId: string,
     tenantSlug: string,
     role: string
   ): Promise<AuthResponseDto> {
     const accessToken = this.generateAccessToken({
       sub: userId,
       email,
+      tenantId,
       tenantSlug,
       role,
     });
@@ -174,6 +181,7 @@ export class AuthService {
     const refreshTokenString = this.generateRefreshToken({
       sub: userId,
       email,
+      tenantId,
       tenantSlug,
       role,
     });
@@ -244,42 +252,134 @@ export class AuthService {
     }
   }
 
-  async signup(payload: SignupDto): Promise<{ message: string; user: Partial<User>; password: string }> {
-    const resolvedEmail = payload.email || payload.username || '';
-    const tenantSlug = this.normalizeTenantSlug(payload.tenantSlug || payload.labName || payload.tenantName || payload.name || resolvedEmail);
-    const tenantName = payload.labName || payload.tenantName || payload.name;
-    const chosenRole = payload.role || UserRole.RECEPTIONIST;
-    const generatedLabCode = (payload.labCode || '').trim() || this.generateLabCode(tenantSlug);
+  async resolveTenantForLogin(
+    tenantSlug?: string,
+    labCode?: string,
+  ): Promise<{ id: string; slug: string; schemaName: string; status: string }> {
+    const publicDS = this.publicDataSourceService.getDataSource();
+    const normalizedSlug = tenantSlug?.trim();
+    const normalizedLabCode = labCode?.trim();
 
-    if (!resolvedEmail || !payload.password || !payload.name) {
+    let tenantRows: Array<{ id: string; slug: string; schema_name: string; status: string }> = [];
+
+    if (normalizedSlug) {
+      tenantRows = await publicDS.query<
+        Array<{ id: string; slug: string; schema_name: string; status: string }>
+      >(
+        'SELECT id, slug, schema_name, status FROM public.tenants WHERE slug = $1 LIMIT 1',
+        [normalizedSlug],
+      );
+    }
+
+    if (!tenantRows.length && normalizedLabCode) {
+      tenantRows = await publicDS.query<
+        Array<{ id: string; slug: string; schema_name: string; status: string }>
+      >(
+        'SELECT id, slug, schema_name, status FROM public.tenants WHERE lab_code = $1 LIMIT 1',
+        [normalizedLabCode],
+      );
+    }
+
+    const tenant = tenantRows[0];
+    if (!tenant) {
+      throw new UnauthorizedException('Tenant not found for the provided lab code or tenant slug');
+    }
+
+    switch (tenant.status) {
+      case TenantStatus.UNVERIFIED:
+        throw new UnauthorizedException('Registration is incomplete. Please verify your OTP first.');
+      case TenantStatus.PENDING_APPROVAL:
+        throw new UnauthorizedException('Your lab is pending admin approval.');
+      case TenantStatus.APPROVED:
+        throw new UnauthorizedException('Your lab is awaiting provisioning. Please try again shortly.');
+      case TenantStatus.PROVISIONING:
+        throw new UnauthorizedException('Your lab is still being provisioned. Please try again shortly.');
+      case TenantStatus.PROVISIONING_FAILED:
+        throw new UnauthorizedException('Lab provisioning failed. Please contact support.');
+      case TenantStatus.ACTIVE:
+        return {
+          id: tenant.id,
+          slug: tenant.slug,
+          schemaName: tenant.schema_name,
+          status: tenant.status,
+        };
+      default:
+        throw new UnauthorizedException('Your lab access is not active yet.');
+    }
+  }
+
+  /**
+   * Step 1 Signup: Create unverified public registration
+   *
+   * Flow:
+   * 1. Validate input (name, email, password required)
+   * 2. Normalize slug from lab/tenant name
+   * 3. Check slug uniqueness
+   * 4. Hash password
+   * 5. Insert into public.tenants with status='unverified'
+   * 6. Return registration details (NOT auth tokens)
+   * 7. OTP sent by subsequent step (verify-otp)
+   *
+   * What this DOES NOT do:
+   * - Does NOT create tenant schema
+   * - Does NOT create users table
+   * - Does NOT create a user record
+   * - Does NOT send any emails
+   * - Does NOT return auth tokens
+   */
+  async signup(payload: SignupDto): Promise<SignupResponseDto> {
+    const adminEmail = payload.email || payload.username || '';
+    const adminName = payload.name || '';
+    const tenantSlug = this.normalizeTenantSlug(
+      payload.tenantSlug || payload.labName || payload.tenantName || payload.name || adminEmail,
+    );
+    const tenantName = payload.labName || payload.tenantName || payload.name;
+
+    // Validate required fields
+    if (!adminEmail || !payload.password || !adminName) {
       throw new BadRequestException('Name, email, and password are required');
     }
 
+    if (!adminEmail.includes('@')) {
+      throw new BadRequestException('Invalid email address');
+    }
+
+    if (payload.password.length < 8) {
+      throw new BadRequestException('Password must be at least 8 characters');
+    }
+
     const publicDS = this.publicDataSourceService.getDataSource();
-    const existingTenantRows = await publicDS.query(
-      'SELECT slug, schema_name FROM public.tenants WHERE slug = $1 LIMIT 1',
+
+    // Check slug uniqueness
+    const existingRows = await publicDS.query(
+      'SELECT id FROM public.tenants WHERE slug = $1 LIMIT 1',
       [tenantSlug],
     );
 
-    if (existingTenantRows?.length) {
-      const existingTenant = existingTenantRows[0] as { slug: string; schema_name: string };
-      const tenantDS = await this.tenantDataSourceService.getForTenant(existingTenant.slug);
-      const existingUser = await tenantDS.getRepository(User).findOne({ where: { email: resolvedEmail } });
-      if (existingUser) {
-        throw new BadRequestException('User with this email already exists for this tenant');
-      }
+    if (existingRows?.length) {
+      throw new BadRequestException('This lab is already registered');
     }
 
+    // Hash the password
+    const passwordHash = await this.hashPassword(payload.password);
+
+    // Generate schema name (for later provisioning)
     const schemaName = this.getSchemaName(tenantSlug);
-    await publicDS.query(
-      `
+
+    // Insert into public.tenants with status='unverified'
+    let tenant: { id: string; slug: string; schema_name: string; status: string };
+    try {
+      const tenantRows = await publicDS.query(
+        `
         INSERT INTO public.tenants (
           slug,
           name,
           email,
           schema_name,
           status,
-          lab_code,
+          admin_name,
+          admin_email,
+          admin_password_hash,
           registration_number,
           gst_number,
           mobile_number,
@@ -290,128 +390,82 @@ export class AuthService {
           complete_address,
           plan,
           terms_accepted,
-          privacy_accepted
+          privacy_accepted,
+          created_at,
+          updated_at
         )
-        VALUES ($1, $2, $3, $4, 'active', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-        ON CONFLICT (slug) DO UPDATE SET
-          name = EXCLUDED.name,
-          email = EXCLUDED.email,
-          schema_name = EXCLUDED.schema_name,
-          status = 'active',
-          lab_code = EXCLUDED.lab_code,
-          registration_number = EXCLUDED.registration_number,
-          gst_number = EXCLUDED.gst_number,
-          mobile_number = EXCLUDED.mobile_number,
-          country = EXCLUDED.country,
-          state = EXCLUDED.state,
-          city = EXCLUDED.city,
-          pin_code = EXCLUDED.pin_code,
-          complete_address = EXCLUDED.complete_address,
-          plan = EXCLUDED.plan,
-          terms_accepted = EXCLUDED.terms_accepted,
-          privacy_accepted = EXCLUDED.privacy_accepted,
-          updated_at = CURRENT_TIMESTAMP
+        VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+          $11, $12, $13, $14, $15, $16, $17, $18, $19,
+          NOW(), NOW()
+        )
+        RETURNING id, slug, schema_name, status
       `,
-      [
-        tenantSlug,
-        tenantName,
-        resolvedEmail,
-        schemaName,
-        generatedLabCode,
-        payload.registrationNumber || null,
-        payload.gstNumber || null,
-        payload.mobileNumber || null,
-        payload.country || null,
-        payload.state || null,
-        payload.city || null,
-        payload.pinCode || null,
-        payload.completeAddress || null,
-        payload.plan || null,
-        payload.terms === true,
-        payload.privacy === true,
-      ],
-    );
-
-    const tenantDS = await this.tenantDataSourceService.getForTenant(tenantSlug);
-    await tenantDS.query(`CREATE SCHEMA IF NOT EXISTS ${schemaName}`);
-    await tenantDS.query(`CREATE TABLE IF NOT EXISTS ${schemaName}.users (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      email VARCHAR(255) NOT NULL UNIQUE,
-      name VARCHAR(255) NOT NULL,
-      password_hash VARCHAR(255) NOT NULL,
-      role VARCHAR(50) NOT NULL DEFAULT 'Receptionist',
-      is_active BOOLEAN DEFAULT true,
-      phone VARCHAR(20),
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );`);
-
-    const passwordHash = await this.hashPassword(payload.password);
-    const userRepository = tenantDS.getRepository(User);
-    const existingUserInSchema = await userRepository.findOne({ where: { email: resolvedEmail } });
-    if (existingUserInSchema) {
-      throw new BadRequestException('User with this email already exists for this tenant');
-    }
-
-    let user: User;
-    try {
-      user = await userRepository.save(
-        userRepository.create({
-          email: resolvedEmail,
-          name: payload.name,
+        [
+          tenantSlug,
+          tenantName,
+          adminEmail,
+          schemaName,
+          TenantStatus.UNVERIFIED,
+          adminName,
+          adminEmail,
           passwordHash,
-          role: chosenRole,
-          isActive: true,
-        }),
+          payload.registrationNumber || null,
+          payload.gstNumber || null,
+          payload.mobileNumber || null,
+          payload.country || null,
+          payload.state || null,
+          payload.city || null,
+          payload.pinCode || null,
+          payload.completeAddress || null,
+          payload.plan || null,
+          payload.terms === true,
+          payload.privacy === true,
+        ],
       );
+
+      tenant = tenantRows[0];
+      if (!tenant?.id || !tenant.slug || !tenant.schema_name) {
+        throw new Error('Tenant creation returned no valid record');
+      }
     } catch (error) {
       const errorCode = (error as { code?: string; driverError?: { code?: string } }).code
         || (error as { driverError?: { code?: string } }).driverError?.code;
 
       if (errorCode === '23505') {
-        throw new BadRequestException('User with this email already exists for this tenant');
+        throw new BadRequestException('This lab is already registered');
       }
 
+      this.logger.error('Signup insert failed:', error);
       throw error;
     }
 
-    await this.auditService.logEvent({
-      tenantSlug,
-      action: 'users.created',
-      entityType: 'users',
-      entityId: user.id,
-      userId: user.id,
-      userEmail: user.email,
-      role: user.role,
-      newValues: {
-        source: 'signup',
-        tenantName,
-        role: chosenRole,
-        labCode: generatedLabCode,
-        registrationNumber: payload.registrationNumber,
-        designation: payload.designation,
-        username: payload.username,
-      },
-    });
+    // Clear any cached tenant entry
+    await this.tenantCacheService?.invalidate(tenant.slug);
 
-    await this.sendSignupCredentialsEmail(resolvedEmail, payload.name, payload.password, tenantSlug);
+    // Queue OTP delivery (async, non-blocking)
+    try {
+      await this.otpService.sendOtp(
+        tenant.id,
+        tenant.slug,
+        adminEmail,
+        tenantName,
+        adminName,
+      );
+    } catch (error) {
+      this.logger.error(`Failed to send OTP for tenant ${tenant.slug}:`, error);
+      // OTP failure is logged but doesn't block signup success
+      // User can request resend via /auth/resend-otp
+    }
 
     return {
-      message: 'User created successfully',
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
-      password: payload.password,
+      message: 'Registration submitted successfully. OTP sent to admin email.',
+      tenantId: tenant.id,
+      tenantSlug: tenant.slug,
+      status: tenant.status,
+      otpSentTo: adminEmail,
+      otpInfo: 'Check your email for OTP. Valid for 10 minutes.',
     };
-  }
-
-  private generateLabCode(tenantSlug: string): string {
-    const slugPart = tenantSlug.replace(/[^a-z0-9]+/gi, '').slice(0, 4).toUpperCase();
-    const randomPart = Math.random().toString(36).slice(2, 6).toUpperCase();
-    return `${slugPart || 'PCL'}${randomPart}`;
   }
 
   private normalizeTenantSlug(value: string): string {
@@ -421,11 +475,6 @@ export class AuthService {
 
   private getSchemaName(tenantSlug: string): string {
     return `tenant_${this.normalizeTenantSlug(tenantSlug)}`;
-  }
-
-  private async sendSignupCredentialsEmail(email: string, name: string, password: string, tenantSlug: string): Promise<void> {
-    this.logger.log(`Signup credentials email prepared for ${email} (${name}) in tenant ${tenantSlug}`);
-    this.logger.log(`Temporary password for ${email}: ${password}`);
   }
 
   /**

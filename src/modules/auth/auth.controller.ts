@@ -18,11 +18,16 @@ import { TenantDataSourceService } from '../../database/datasources/tenant.datas
 import { UsersRepository } from '../users/users.repository';
 import { LoginDto } from './dtos/login.dto';
 import { SignupDto } from './dtos/signup.dto';
+import { SignupResponseDto } from './dtos/signup-response.dto';
+import { VerifyOtpDto } from './dtos/verify-otp.dto';
+import { VerifyOtpResponseDto } from './dtos/verify-otp-response.dto';
+import { ResendOtpDto } from './dtos/resend-otp.dto';
 import { AuthResponseDto } from './dtos/auth-response.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuditService } from '../audit/audit.service';
 import { LoginThrottleGuard } from './guards/login-throttle.guard';
 import { clearRefreshCookieOptions, getRefreshCookieOptions } from './utils/cookie-options';
+import { OtpService } from '../verification/otp.service';
 
 @ApiTags('auth')
 @Controller(['auth', 'api/auth'])
@@ -34,6 +39,7 @@ export class AuthController {
     private tenantDSService: TenantDataSourceService,
     private usersRepository: UsersRepository,
     private auditService: AuditService,
+    private otpService: OtpService,
   ) {}
 
   @Get('me')
@@ -42,7 +48,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Get current authenticated user profile' })
   @ApiResponse({ status: 200, description: 'Authenticated user returned' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getProfile(@Req() req: Request & { user?: { sub?: string; email?: string; tenantSlug?: string; role?: string } }) {
+  async getProfile(@Req() req: Request & { user?: { sub?: string; email?: string; tenantId?: string; tenantSlug?: string; role?: string } }) {
     await this.auditService.logEvent({
       tenantSlug: req.headers['x-tenant-slug'] ? String(req.headers['x-tenant-slug']) : 'unknown',
       action: 'auth.profile.viewed',
@@ -57,6 +63,7 @@ export class AuthController {
     return {
       id: req.user?.sub,
       email: req.user?.email,
+      tenantId: req.user?.tenantId,
       tenantSlug: req.user?.tenantSlug,
       role: req.user?.role,
     };
@@ -75,11 +82,11 @@ export class AuthController {
   @ApiResponse({ status: 404, description: 'User not found' })
   async login(
     @Body() loginDto: LoginDto,
-    @Headers('x-tenant-slug') tenantSlug: string,
+    @Req() req: Request & { tenantId?: string; tenantSlug?: string },
     @Res({ passthrough: true }) res: Response,
-    @Req() req: Request,
+    @Headers('x-tenant-slug') tenantSlug?: string,
   ): Promise<AuthResponseDto> {
-    if (!tenantSlug || typeof tenantSlug !== 'string' || tenantSlug.trim() === '') {
+    if ((!tenantSlug || typeof tenantSlug !== 'string' || tenantSlug.trim() === '') && !loginDto.labCode) {
       await this.auditService.logEvent({
         tenantSlug: 'unknown',
         action: 'auth.login.failed',
@@ -87,20 +94,24 @@ export class AuthController {
         entityId: 'login',
         newValues: { reason: 'missing_tenant_header', email: loginDto.email },
       });
-      throw new BadRequestException('X-Tenant-Slug header is required');
+      throw new BadRequestException('X-Tenant-Slug header is required when no lab code is provided');
     }
 
     try {
+      const resolvedTenant = await this.authService.resolveTenantForLogin(tenantSlug, loginDto.labCode);
+      req.tenantId = resolvedTenant.id;
+      req.tenantSlug = resolvedTenant.slug;
+
       // Get tenant-specific datasource
-      const tenantDS = await this.tenantDSService.getForTenant(tenantSlug);
+      const tenantDS = await this.tenantDSService.getForTenant(resolvedTenant.slug);
 
       // Find user by email
       const user = await this.usersRepository.findByEmail(tenantDS, loginDto.email);
       if (!user) {
-        this.logger.warn(`Login failed: user not found - ${loginDto.email} (tenant: ${tenantSlug})`);
-        this.authService.loginAttemptService.recordFailure(req.ip || 'unknown-ip', loginDto.email);
+        this.logger.warn(`Login failed: user not found - ${loginDto.email} (tenant: ${resolvedTenant.slug})`);
+        await this.authService.loginAttemptService.recordFailure(resolvedTenant.slug, req.ip || 'unknown-ip', loginDto.email);
         await this.auditService.logEvent({
-          tenantSlug,
+          tenantSlug: resolvedTenant.slug,
           action: 'auth.login.failed',
           entityType: 'auth',
           entityId: loginDto.email,
@@ -116,10 +127,10 @@ export class AuthController {
         user.passwordHash,
       );
       if (!isPasswordValid) {
-        this.logger.warn(`Login failed: invalid password - ${loginDto.email} (tenant: ${tenantSlug})`);
-        this.authService.loginAttemptService.recordFailure(req.ip || 'unknown-ip', loginDto.email);
+        this.logger.warn(`Login failed: invalid password - ${loginDto.email} (tenant: ${resolvedTenant.slug})`);
+        await this.authService.loginAttemptService.recordFailure(resolvedTenant.slug, req.ip || 'unknown-ip', loginDto.email);
         await this.auditService.logEvent({
-          tenantSlug,
+          tenantSlug: resolvedTenant.slug,
           action: 'auth.login.failed',
           entityType: 'auth',
           entityId: user.id,
@@ -132,10 +143,10 @@ export class AuthController {
       }
 
       if (!user.isActive) {
-        this.logger.warn(`Login failed: user inactive - ${loginDto.email} (tenant: ${tenantSlug})`);
-        this.authService.loginAttemptService.recordFailure(req.ip || 'unknown-ip', loginDto.email);
+        this.logger.warn(`Login failed: user inactive - ${loginDto.email} (tenant: ${resolvedTenant.slug})`);
+        await this.authService.loginAttemptService.recordFailure(resolvedTenant.slug, req.ip || 'unknown-ip', loginDto.email);
         await this.auditService.logEvent({
-          tenantSlug,
+          tenantSlug: resolvedTenant.slug,
           action: 'auth.login.failed',
           entityType: 'auth',
           entityId: user.id,
@@ -151,17 +162,18 @@ export class AuthController {
       const authResponse = await this.authService.buildAuthResponse(
         user.id,
         user.email,
-        tenantSlug,
+        req.tenantId,
+        resolvedTenant.slug,
         user.role,
       );
 
       // Set refresh token in httpOnly cookie
       res.cookie('refreshToken', authResponse.refreshToken, getRefreshCookieOptions(process.env));
 
-      this.logger.log(`User logged in: ${user.email} (tenant: ${tenantSlug})`);
-      this.authService.loginAttemptService.recordSuccess(req.ip || 'unknown-ip', loginDto.email);
+      this.logger.log(`User logged in: ${user.email} (tenant: ${resolvedTenant.slug})`);
+      await this.authService.loginAttemptService.recordSuccess(resolvedTenant.slug, req.ip || 'unknown-ip', loginDto.email);
       await this.auditService.logEvent({
-        tenantSlug,
+        tenantSlug: resolvedTenant.slug,
         action: 'auth.login.success',
         entityType: 'auth',
         entityId: user.id,
@@ -184,12 +196,36 @@ export class AuthController {
   }
 
   @Post('signup')
-  @ApiOperation({ summary: 'Create a new tenant and user account' })
+  @ApiOperation({ summary: 'Submit lab registration and request OTP verification' })
   @ApiBody({ type: SignupDto })
-  @ApiResponse({ status: 201, description: 'User created successfully' })
-  @ApiResponse({ status: 400, description: 'Bad request' })
-  async signup(@Body() signupDto: SignupDto) {
+  @ApiResponse({ status: 201, description: 'Registration submitted, OTP sent', type: SignupResponseDto })
+  @ApiResponse({ status: 400, description: 'Invalid input or duplicate registration' })
+  async signup(@Body() signupDto: SignupDto): Promise<SignupResponseDto> {
     return this.authService.signup(signupDto);
+  }
+
+  @Post('verify-otp')
+  @ApiOperation({ summary: 'Verify OTP and transition to pending_approval state' })
+  @ApiBody({ type: VerifyOtpDto })
+  @ApiResponse({ status: 200, description: 'OTP verified, lab code generated', type: VerifyOtpResponseDto })
+  @ApiResponse({ status: 400, description: 'Invalid OTP or tenant not found' })
+  @ApiResponse({ status: 409, description: 'OTP expired or max attempts exceeded' })
+  async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto): Promise<VerifyOtpResponseDto> {
+    return this.otpService.verifyOtp(
+      verifyOtpDto.tenantSlug,
+      verifyOtpDto.email,
+      verifyOtpDto.otpCode,
+    );
+  }
+
+  @Post('resend-otp')
+  @ApiOperation({ summary: 'Request OTP resend with cooldown enforcement' })
+  @ApiBody({ type: ResendOtpDto })
+  @ApiResponse({ status: 200, description: 'OTP resent successfully' })
+  @ApiResponse({ status: 400, description: 'Tenant or email not found' })
+  @ApiResponse({ status: 409, description: 'Resend cooldown not met or max resends exceeded' })
+  async resendOtp(@Body() resendOtpDto: ResendOtpDto) {
+    return this.otpService.resendOtp(resendOtpDto.tenantSlug, resendOtpDto.email);
   }
 
   @Post('refresh')

@@ -60,6 +60,28 @@ export class TenantController {
     return this.tenantService.getIsolationProof(slug);
   }
 
+  @Post(':slug/approve')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Approve a tenant and trigger provisioning' })
+  @ApiResponse({ status: 200, description: 'Tenant approved and provisioned' })
+  async approveTenant(
+    @Param('slug') slug: string,
+    @Req() req: any,
+  ): Promise<{ message: string; slug: string; status: string }> {
+    await this.auditService.logEvent({
+      tenantSlug: req.headers['x-tenant-slug'] ? String(req.headers['x-tenant-slug']) : slug,
+      action: 'tenants.approved',
+      entityType: 'tenant',
+      entityId: slug,
+      userId: req.user?.sub,
+      userEmail: req.user?.email,
+      role: req.user?.role,
+      newValues: { source: 'tenant_approve_endpoint' },
+    });
+
+    return this.tenantService.approveTenant(slug);
+  }
+
   @Post('delete/init')
   @HttpCode(200)
   @ApiOperation({ summary: 'Initialize tenant deletion with OTP email' })

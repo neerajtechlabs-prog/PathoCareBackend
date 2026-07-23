@@ -3,104 +3,113 @@ import { IsBoolean, IsEmail, IsEnum, IsOptional, IsString, MinLength, MaxLength 
 import { UserRole } from '../../../database/entities/tenant/user.entity';
 
 export class SignupDto {
-  @ApiProperty({ example: 'John Doe', description: 'Full name of the new user' })
+  /**
+   * Admin/Registration Contact Details
+   */
+  @ApiProperty({ example: 'Dr. John Doe', description: 'Full name of the lab admin/primary contact' })
   @IsString()
   @MinLength(2)
   @MaxLength(255)
   name!: string;
 
-  @ApiProperty({ example: 'john.doe@pathcare.local', description: 'Email address to use for login' })
+  @ApiProperty({ example: 'admin@labname.local', description: 'Email address for OTP verification and login (lab admin email)' })
   @IsEmail()
   email!: string;
 
-  @ApiProperty({ example: 'Password123!', description: 'Temporary password for the new account' })
+  @ApiProperty({ example: 'Password123!', description: 'Password for the lab admin account (hashed and stored until first approved login)' })
   @IsString()
   @MinLength(8)
   @MaxLength(255)
   password!: string;
 
-  @ApiProperty({ example: 'PathCare Demo Lab', description: 'Display name of the tenant', required: false })
+  /**
+   * Lab/Tenant Details
+   */
+  @ApiProperty({ example: 'PathCare Demo Lab', description: 'Display name of the lab/tenant', required: false })
   @IsOptional()
   @IsString()
   @MaxLength(255)
   tenantName?: string;
 
-  @ApiProperty({ example: 'PathCare Labs', description: 'Lab / tenant display name sent from frontend', required: false })
+  @ApiProperty({ example: 'PathCare Labs', description: 'Lab display name (alternative to tenantName)', required: false })
   @IsOptional()
   @IsString()
   @MaxLength(255)
   labName?: string;
 
-  @ApiProperty({ example: 'PCL001', description: 'Lab code', required: false })
+  @ApiProperty({ example: 'PCL001', description: 'Lab code (requested or pre-assigned)', required: false })
   @IsOptional()
   @IsString()
   @MaxLength(50)
   labCode?: string;
 
-  @ApiProperty({ example: 'NABL-1234', description: 'Registration number', required: false })
+  @ApiProperty({ example: 'NABL-1234', description: 'Lab registration number', required: false })
   @IsOptional()
   @IsString()
   @MaxLength(100)
   registrationNumber?: string;
 
-  @ApiProperty({ example: '27AABCU9603R1ZV', description: 'GST number', required: false })
+  @ApiProperty({ example: '27AABCU9603R1ZV', description: 'GST registration number', required: false })
   @IsOptional()
   @IsString()
   @MaxLength(20)
   gstNumber?: string;
 
-  @ApiProperty({ example: '+919876543210', description: 'Mobile number', required: false })
+  @ApiProperty({ example: '+919876543210', description: 'Lab contact mobile number', required: false })
   @IsOptional()
   @IsString()
   @MaxLength(20)
   mobileNumber?: string;
 
-  @ApiProperty({ example: 'Administrator', description: 'Designation of the user', required: false })
-  @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  designation?: string;
-
-  @ApiProperty({ example: 'admin@pathcare.com', description: 'Username/login identifier sent by frontend', required: false })
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  username?: string;
-
-  @ApiProperty({ example: 'India', description: 'Country', required: false })
+  @ApiProperty({ example: 'India', description: 'Lab country', required: false })
   @IsOptional()
   @IsString()
   @MaxLength(100)
   country?: string;
 
-  @ApiProperty({ example: 'Uttar Pradesh', description: 'State', required: false })
+  @ApiProperty({ example: 'Uttar Pradesh', description: 'Lab state', required: false })
   @IsOptional()
   @IsString()
   @MaxLength(100)
   state?: string;
 
-  @ApiProperty({ example: 'Meerut', description: 'City', required: false })
+  @ApiProperty({ example: 'Meerut', description: 'Lab city', required: false })
   @IsOptional()
   @IsString()
   @MaxLength(100)
   city?: string;
 
-  @ApiProperty({ example: '250342', description: 'PIN code', required: false })
+  @ApiProperty({ example: '250342', description: 'Lab PIN code', required: false })
   @IsOptional()
   @IsString()
   @MaxLength(20)
   pinCode?: string;
 
-  @ApiProperty({ example: 'Rajpur Momin', description: 'Complete address', required: false })
+  @ApiProperty({ example: 'Rajpur Momin', description: 'Lab complete address', required: false })
   @IsOptional()
   @IsString()
   completeAddress?: string;
 
-  @ApiProperty({ example: 'Starter', description: 'Subscription plan', required: false })
+  /**
+   * Optional metadata
+   */
+  @ApiProperty({ example: 'Starter', description: 'Requested subscription plan', required: false })
   @IsOptional()
   @IsString()
   @MaxLength(50)
   plan?: string;
+
+  @ApiProperty({ example: 'Administrator', description: 'Admin designation/title', required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  designation?: string;
+
+  @ApiProperty({ example: 'admin@pathcare.com', description: 'Alternative username/identifier (legacy)', required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  username?: string;
 
   @ApiProperty({ example: true, description: 'Terms accepted', required: false })
   @IsOptional()

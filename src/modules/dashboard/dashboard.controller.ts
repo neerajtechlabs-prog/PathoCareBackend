@@ -12,7 +12,14 @@ export class DashboardController {
   constructor(private svc: DashboardService) {}
 
   @Get('workload')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(
+    UserRole.SUPER_ADMIN,
+    UserRole.LAB_ADMIN,
+    UserRole.RECEPTIONIST,
+    UserRole.LAB_TECHNICIAN,
+    UserRole.DOCTOR,
+  )
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get dashboard workload metrics' })
   @ApiResponse({ status: 200, description: 'Dashboard workload statistics' })

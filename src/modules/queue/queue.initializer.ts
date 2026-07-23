@@ -4,6 +4,7 @@ import { Worker } from 'bullmq';
 import { ReportProcessor, NotificationProcessor, ExportProcessor, ResultsEvaluateProcessor } from './processors';
 import { TenantDataSourceService } from '../../database/datasources/tenant.datasource';
 import { QueueService } from './services/queue.service';
+import { QueueName } from './queue.types';
 
 /**
  * Queue Initializer
@@ -29,10 +30,11 @@ export class QueueInitializer implements OnModuleInit, OnModuleDestroy {
       // Create workers for each processor
       const reportWorker = ReportProcessor.createWorker(redisConfig, this.tenantDSService);
       const notificationWorker = NotificationProcessor.createWorker(redisConfig, this.tenantDSService);
+      const emailWorker = NotificationProcessor.createWorker(redisConfig, this.tenantDSService, QueueName.EMAIL);
       const exportWorker = ExportProcessor.createWorker(redisConfig, this.tenantDSService);
       const resultsWorker = ResultsEvaluateProcessor.createWorker(redisConfig, this.tenantDSService, this.queueService);
 
-      this.workers = [reportWorker, notificationWorker, exportWorker, resultsWorker];
+      this.workers = [reportWorker, notificationWorker, emailWorker, exportWorker, resultsWorker];
 
       // Setup event listeners for workers
       this.setupWorkerListeners();
@@ -61,7 +63,7 @@ export class QueueInitializer implements OnModuleInit, OnModuleDestroy {
    */
   private setupWorkerListeners(): void {
     this.workers.forEach((worker, index) => {
-      const workerName = ['Reports', 'Notifications', 'Exports', 'ResultsEvaluate'][index];
+      const workerName = ['Reports', 'Notifications', 'Email', 'Exports', 'ResultsEvaluate'][index];
 
       worker.on('completed', job => {
         this.logger.debug(`[${workerName}] Job ${job?.id ?? 'unknown'} completed`);
@@ -87,7 +89,7 @@ export class QueueInitializer implements OnModuleInit, OnModuleDestroy {
    */
   getActiveWorkers(): Array<{ name: string; status: string }> {
     return this.workers.map((worker, index) => ({
-      name: ['reports-processor', 'notifications-processor', 'exports-processor'][index],
+      name: ['reports-processor', 'notifications-processor', 'email-processor', 'exports-processor'][index],
       status: worker ? 'active' : 'inactive',
     }));
   }

@@ -6,6 +6,7 @@ export enum QueueName {
   REPORTS = 'reports',
   NOTIFICATIONS = 'notifications',
   EXPORTS = 'exports',
+  EMAIL = 'email',
 }
 
 export enum JobType {
@@ -51,10 +52,12 @@ export interface SendSmsJobData {
  */
 export interface SendEmailJobData {
   tenantSlug: string;
-  to: string;
-  subject: string;
-  template: string;
-  context: Record<string, any>;
+  to?: string;
+  subject?: string;
+  template?: string;
+  context?: Record<string, any>;
+  recipient?: string;
+  otpCode?: string;
   referenceId?: string;
 }
 
